@@ -100,45 +100,64 @@ export class GoogleMapsWrapper {
 
       // 2. 尋找並進入清單 (若不在該清單內)
       let listBtn = document.querySelector('button[data-list-id="' + collectionId + '"]');
-      if (listBtn) {
-        const label = listBtn.getAttribute('aria-label') || "";
-        const match = label.match(/·(\\d+) 個地點$/);
-        const expectedCount = match ? parseInt(match[1], 10) : 0;
+      if (!listBtn) {
+         throw new Error("COLLECTION_NOT_FOUND: 在目前頁面找不到 ID 為 " + collectionId + " 的清單。");
+      }
 
-        listBtn.click();
-        await sleep(2000);
+      listBtn.click();
+      await sleep(2000);
 
-        // 3. 抓取地點
-        const items = Array.from(document.querySelectorAll('div[role="main"] button[aria-label]'));
-        const places = items.map(item => {
-          const name = item.getAttribute('aria-label') || "";
-          if (["分享", "新增地點", "更多選項"].includes(name)) return null;
+      // 3. 在清單頁面獲取預期數量
+      const header = document.querySelector('div[role="main"] h2');
+      const expectedCountMatch = header?.innerText?.match(/·\s*(\d+)\s*個地點/);
+      if (!expectedCountMatch) throw new Error("PARSE_ERROR: 無法從標題解析預期地點數量。");
+      const expectedCount = parseInt(expectedCountMatch[1], 10);
 
-          const parent = item.closest('div');
-          const infoText = parent?.innerText || "";
-          
-          const statusMatch = infoText.match(/(已歇業|暫停營業|營業中|地點已不存在)/);
-          const categoryMatch = infoText.match(/(?:·\\s*|)([\\u4e00-\\u9fa5a-zA-Z\\s]+)$/m);
+      // 4. 自動捲動載入所有地點
+      const scrollable = document.querySelector('div.m6QErb.dS8AEf');
+      if (scrollable) {
+        let lastCount = 0;
+        let currentCount = document.querySelectorAll('div[role="main"] button[aria-label]').length;
+        let retry = 0;
+
+        while (currentCount < expectedCount && retry < 10) {
+          scrollable.scrollTo(0, scrollable.scrollHeight);
+          await sleep(2000);
+          lastCount = currentCount;
+          currentCount = document.querySelectorAll('div[role="main"] button[aria-label]').length;
+          if (currentCount === lastCount) retry++;
+          else retry = 0;
+        }
+      }
+
+      // 5. 抓取地點
+      const items = Array.from(document.querySelectorAll('div[role="main"] button[aria-label]'));
+      const places = items.map(item => {
+        const name = item.getAttribute('aria-label') || "";
+        if (["分享", "新增地點", "更多選項", "路線"].includes(name)) return null;
+
+        const parent = item.closest('div');
+        const infoText = parent?.innerText || "";
+        
+        const statusMatch = infoText.match(/(已歇業|暫停營業|營業中|地點已不存在)/);
+        const categoryMatch = infoText.match(/(?:·\s*|)([\u4e00-\u9fa5a-zA-Z\s]+)$/m);
 
         if (!statusMatch) throw new Error("STATUS_MISSING: 地點 " + name + " 缺少營業狀態。");
         if (!categoryMatch) throw new Error("CATEGORY_MISSING: 地點 " + name + " 缺少類別資訊。");
-          
-          return {
-            name: name,
-            url: "https://www.google.com/maps/search/" + encodeURIComponent(name),
-            status: statusMatch[0],
-            category: categoryMatch[1].trim(),
-            note: "自動化嚴格提取"
-          };
-        }).filter(p => p !== null);
+        
+        return {
+          name: name,
+          url: "https://www.google.com/maps/search/" + encodeURIComponent(name),
+          status: statusMatch[0],
+          category: categoryMatch[1].trim(),
+          note: "自動化嚴格提取"
+        };
+      }).filter(p => p !== null);
 
-        if (places.length !== expectedCount) {
-          throw new Error("DATA_INCONSISTENCY: 數量不符 (抓取:" + places.length + ", 預期:" + expectedCount + ")");
-        }
-        return places;
-      } else {
-         throw new Error("COLLECTION_NOT_FOUND: 在目前頁面找不到 ID 為 " + collectionId + " 的清單。");
+      if (places.length !== expectedCount) {
+        throw new Error("DATA_INCONSISTENCY: 數量不符 (抓取:" + places.length + ", 預期:" + expectedCount + ")");
       }
+      return places;
     })()`;
   }
 }
