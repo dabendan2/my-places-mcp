@@ -13,9 +13,8 @@ export class PlaceService {
     this.wrapper = new GoogleMapsWrapper();
   }
 
-  private runCli(script: string): any {
+  private runCli(script: string, retryCount = 0): any {
     try {
-      // 構建 CLI 指令，並透過 JSON 格式傳遞腳本以避免轉義問題
       const request = JSON.stringify({
         kind: "evaluate",
         fn: script
@@ -23,22 +22,34 @@ export class PlaceService {
       
       const command = `openclaw browser act --profile chrome --targetId last --request '${request.replace(/'/g, "'\\''")}'`;
       const output = execSync(command, { encoding: "utf8" });
-      
-      // 預期 openclaw CLI 輸出 JSON 格式的結果
       const parsed = JSON.parse(output);
       
       if (!parsed.ok) {
         throw new Error(parsed.error || "CLI_EXECUTION_FAILED");
       }
       
-      // 處理 GoogleMaps 狀態代碼 (如 NAVIGATING)
+      // 內部處理 NAVIGATING 狀態
+      if (parsed.result === ErrorCode.NAVIGATING) {
+        if (retryCount < 3) {
+          execSync("sleep 3");
+          return this.runCli(script, retryCount + 1);
+        }
+        throw new Error(ErrorCode.NAVIGATING);
+      }
+      
       if (Object.values(ErrorCode).includes(parsed.result)) {
         throw new Error(parsed.result);
       }
       
       return parsed.result;
     } catch (error: any) {
-      if (error.message?.includes("NAVIGATING")) throw new Error(ErrorCode.NAVIGATING);
+      if (error.message?.includes("NAVIGATING")) {
+        if (retryCount < 3) {
+          execSync("sleep 3");
+          return this.runCli(script, retryCount + 1);
+        }
+        throw new Error(ErrorCode.NAVIGATING);
+      }
       if (error.message?.includes("AUTH_REQUIRED")) throw new Error(ErrorCode.AUTH_REQUIRED);
       if (error.message?.includes("SIDEBAR_NOT_FOUND")) throw new Error(ErrorCode.SIDEBAR_NOT_FOUND);
       if (error.message?.includes("COLLECTION_NOT_FOUND")) throw new Error(ErrorCode.COLLECTION_NOT_FOUND);
