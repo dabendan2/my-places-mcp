@@ -11,7 +11,7 @@ Google 地圖「已儲存地點」提取工具。
 - **特性**：內部自動呼叫 `openclaw browser` CLI 驅動 Chrome，具備自動導航恢復機制。
 
 ### 2. 獲取清單內地點 (get_places_from_collection)
-- **輸入**：`collectionName` (清單名稱)。
+- **參數要求**：`collectionName` (String, 必需)。請傳入「獲取所有清單」中返回的精確 `name` 欄位文字（例如："想去的地點"）。
 - **輸出**：地點資料 JSON。
 - **資料包含**：名稱、網址、營業狀態、類別。
 - **特性**：自動定位清單並處理分頁捲動。
