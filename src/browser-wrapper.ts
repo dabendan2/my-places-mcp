@@ -90,6 +90,10 @@ export class GoogleMapsWrapper {
     await this.ensureActiveSession();
 
     try {
+      if (!this.page!.url().includes("google.com/maps/save")) {
+        await this.page!.goto("https://www.google.com/maps/save", { timeout: 30000 });
+      }
+
       // 根據 ID 定位按鈕並點擊
       const selector = `button[data-list-id="${collectionId}"], button[aria-label*="${collectionId}"]`;
       await this.page!.waitForSelector(selector, { timeout: 10000 }).catch(() => {
