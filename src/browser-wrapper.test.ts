@@ -1,29 +1,28 @@
 import { GoogleMapsWrapper } from "./browser-wrapper.js";
-import { ErrorCode } from "./types.js";
 
-describe("GoogleMapsWrapper (Refactored)", () => {
+describe("GoogleMapsWrapper (Name-based Indexing)", () => {
   let wrapper: GoogleMapsWrapper;
 
   beforeEach(() => {
     wrapper = new GoogleMapsWrapper();
   });
 
-  test("should generate scripts containing normalized error codes", () => {
-    const listScript = wrapper.listCollectionsScript;
-    const placesScript = wrapper.getPlacesScript("test-id");
-
-    expect(listScript).toContain(ErrorCode.AUTH_REQUIRED);
-    expect(listScript).toContain(ErrorCode.SIDEBAR_NOT_FOUND);
-    expect(placesScript).toContain(ErrorCode.COLLECTION_NOT_FOUND);
-    expect(placesScript).toContain(ErrorCode.DATA_INCONSISTENCY);
-    // TDD 修復後，座標點不再拋出缺失錯誤，而是標記為座標
-    expect(placesScript).toContain("座標位置");
+  test("listCollectionsScript should extract name and type without id", () => {
+    const script = wrapper.listCollectionsScript;
+    expect(script).toContain("Io6YTe"); // Name selector
+    expect(script).toContain("starred"); // Type check
+    expect(script).not.toContain("data-list-id");
   });
 
-  test("should include browser utility functions", () => {
-    const listScript = wrapper.listCollectionsScript;
-    expect(listScript).toContain("const sleep =");
-    expect(listScript).toContain("const ensureGoogleMaps =");
-    expect(listScript).toContain("const checkAuth =");
+  test("getPlacesScript should accept collection name", () => {
+    const name = "想去的地點";
+    const script = wrapper.getPlacesScript(name);
+    expect(script).toContain(name);
+  });
+
+  test("Script should handle various navigation states", () => {
+    const script = wrapper.listCollectionsScript;
+    expect(script).toContain("google.com/maps");
+    expect(script).toContain("已儲存");
   });
 });

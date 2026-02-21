@@ -1,23 +1,9 @@
 import { LIST_COLLECTIONS_TEMPLATE, GET_PLACES_TEMPLATE } from "./script-templates.js";
-
-export interface Collection {
-  id: string;
-  name: string;
-  count: number;
-  visibility: string;
-}
-
-export interface Place {
-  name: string;
-  url: string;
-  status: string;
-  category: string;
-  note: string;
-}
+import { Collection, Place } from "./types.js";
 
 /**
- * GoogleMapsWrapper (OpenClaw Refactored Edition)
- * 使用模板化腳本與規範化錯誤代碼。
+ * GoogleMapsWrapper (Name-based Indexing Edition)
+ * 完全移除 data-list-id 依賴，改用名稱索引與 CSS 類型判斷。
  */
 export class GoogleMapsWrapper {
   get navigationUrl() {
@@ -28,7 +14,7 @@ export class GoogleMapsWrapper {
     return LIST_COLLECTIONS_TEMPLATE;
   }
 
-  getPlacesScript(collectionId: string) {
-    return GET_PLACES_TEMPLATE(collectionId);
+  getPlacesScript(collectionName: string) {
+    return GET_PLACES_TEMPLATE(collectionName);
   }
 }

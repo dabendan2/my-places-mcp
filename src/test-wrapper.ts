@@ -5,7 +5,7 @@ async function runTests() {
   console.log("🧪 Comprehensive Error Code Coverage Test");
 
   const listScript = wrapper.listCollectionsScript;
-  const placesScript = wrapper.getPlacesScript("test-id");
+  const placesScript = wrapper.getPlacesScript("test-collection");
 
   const expectedCodes = [
     // 系統層級
@@ -15,8 +15,6 @@ async function runTests() {
     "AUTH_REQUIRED",
     "COLLECTION_NOT_FOUND",
     "PARSE_ERROR",
-    "MISSING_ID",
-    // TDD 修復後已移除 STATUS_MISSING 與 CATEGORY_MISSING，改由容錯標記取代
     "DATA_INCONSISTENCY"
   ];
 
@@ -43,4 +41,4 @@ async function runTests() {
 runTests().catch(e => {
   console.error(e);
   process.exit(1);
-});
+} );
