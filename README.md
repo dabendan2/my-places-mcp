@@ -1,53 +1,37 @@
-# My Places MCP Server
+# My Places MCP
 
-此伺服器用於提取 Google Maps 中的儲存地點清單。
+專為 Google Maps 「已儲存地點」設計的 Model Context Protocol (MCP) Server。具備自動捲動技術，可完整提取長清單資料。
 
-## 使用前要求
+## 功能特點
+- **全自動導航**：自動開啟並切換至「已儲存」側欄。
+- **動態捲動載入**：自動處理 Google Maps 的動態載入機制，確保大型清單（如數百個地點）提取完整。
+- **嚴謹校驗**：內建 `DATA_INCONSISTENCY` 偵測，確保抓取數量與標題完全吻合。
+- **環境複用**：支援 OpenClaw Chrome Profile，免去重複登入。
 
-1. **OpenClaw Gateway**: 需確保 OpenClaw Gateway 正在執行。
-2. **瀏覽器分頁**: 需開啟一個掛載了 **OpenClaw Browser Relay** 的 Chrome/Chromium 分頁（Badge 顯示 ON）。
-3. **Google 帳號**: 需在該分頁完成 Google 帳號登入。
+## 安裝與執行
 
-## 使用方法
+### 開發環境
+```bash
+npm install
+npm run build
+```
 
-### 1. 獲取所有清單 `list_all_collections`
-列出帳號下所有已儲存的地點清單。
-
-- **回傳範例**:
-  ```json
-  [
-    { "id": "list_abc123", "name": "清單名稱", "count": 12, "visibility": "私人" }
-  ]
-  ```
-
-### 2. 獲取地點清單 `get_places_from_collection`
-獲取指定清單內的詳細地點資訊。
-
-- **參數**: `collection_id` (必填) - 由 `list_all_collections` 取得的 `id`。
-- **回傳範例**:
-  ```json
-  [
-    { 
-      "name": "地點名稱", 
-      "url": "https://www.google.com/maps/search/...", 
-      "status": "營業中", 
-      "category": "餐廳"
+### MCP 設定
+在 `openclaw.json` 中加入：
+```json
+{
+  "mcpServers": {
+    "my-places": {
+      "command": "node",
+      "args": ["/absolute/path/to/my-places-mcp/dist/index.js"]
     }
-  ]
-  ```
+  }
+}
+```
 
-## 錯誤代碼說明
+## 測試
+- `npm test`: 執行核心邏輯與錯誤代碼驗證。
+- `npm run test:coverage`: 查看測試覆蓋率報表（核心模組 100% 覆蓋）。
 
-### 系統層級
-- `BROWSER_CONTROL_FAILED`: 無法連線至 OpenClaw 瀏覽器控制服務或分頁已關閉。
-- `NAVIGATING`: 正在自動導向至 Google Maps 網域，需重新執行腳本。
-- `SIDEBAR_NOT_FOUND`: 無法自動定位或開啟 Google Maps 的「已儲存」側欄。
-
-### 業務邏輯層級
-- `AUTH_REQUIRED`: 偵測到 Google 登入頁面，需使用者手動登入。
-- `COLLECTION_NOT_FOUND`: 在目前頁面找不到指定的清單 ID。
-- `PARSE_ERROR`: 清單按鈕格式不符嚴格正則表達式。
-- `MISSING_ID`: 清單項目缺失關鍵的 `data-list-id`。
-- `STATUS_MISSING`: 地點資訊中解析不到「營業狀態」。
-- `CATEGORY_MISSING`: 地點資訊中解析不到「地點類別」。
-- `DATA_INCONSISTENCY`: 實際抓取的地點數量與清單標示的總數不符。
+## 授權
+MIT
