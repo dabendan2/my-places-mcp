@@ -16,8 +16,7 @@ async function runTests() {
     "COLLECTION_NOT_FOUND",
     "PARSE_ERROR",
     "MISSING_ID",
-    "STATUS_MISSING",
-    "CATEGORY_MISSING",
+    // TDD 修復後已移除 STATUS_MISSING 與 CATEGORY_MISSING，改由容錯標記取代
     "DATA_INCONSISTENCY"
   ];
 

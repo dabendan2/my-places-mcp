@@ -81,9 +81,19 @@ export const GET_PLACES_TEMPLATE = (collectionId: string) => `
     await sleep(2000);
 
     const header = document.querySelector('div[role="main"] h2');
+    let expectedCount = 0;
     const expectedCountMatch = header?.innerText?.match(/·\\s*(\\d+)\\s*個地點/);
-    if (!expectedCountMatch) throw new Error("${ErrorCode.PARSE_ERROR}");
-    const expectedCount = parseInt(expectedCountMatch[1], 10);
+    
+    if (expectedCountMatch) {
+      expectedCount = parseInt(expectedCountMatch[1], 10);
+    } else {
+      // 備選方案：從側欄按鈕獲取 (適用於星號清單等特殊頁面)
+      const listBtn = document.querySelector('button[aria-label*="個地點"][aria-disabled="true"]') || 
+                      document.querySelector('button[aria-label*="個地點"]');
+      const backupMatch = listBtn?.getAttribute('aria-label')?.match(/·\\s*(\\d+)\\s*個地點/);
+      if (backupMatch) expectedCount = parseInt(backupMatch[1], 10);
+      else throw new Error("${ErrorCode.PARSE_ERROR}: 無法判定預期數量");
+    }
 
     const scrollable = document.querySelector('div.m6QErb.dS8AEf');
     if (scrollable) {
@@ -110,14 +120,14 @@ export const GET_PLACES_TEMPLATE = (collectionId: string) => `
       const statusMatch = infoText.match(/(已歇業|暫停營業|營業中|地點已不存在)/);
       const categoryMatch = infoText.match(/(?:·\\s*|)([\\u4e00-\\u9fa5a-zA-Z\\s]+)$/m);
 
-      if (!statusMatch) throw new Error("${ErrorCode.STATUS_MISSING}: " + name);
-      if (!categoryMatch) throw new Error("${ErrorCode.CATEGORY_MISSING}: " + name);
+      // TDD 修復：處理座標點或無狀態地點
+      const isCoordinate = name.match(/^\\(-?\\d+\\.\\d+,\\s*-?\\d+\\.\\d+\\)$/);
       
       return {
         name,
         url: "https://www.google.com/maps/search/" + encodeURIComponent(name),
-        status: statusMatch[0],
-        category: categoryMatch[1].trim(),
+        status: statusMatch ? statusMatch[0] : (isCoordinate ? "座標位置" : "狀態不詳"),
+        category: categoryMatch ? categoryMatch[1].trim() : (isCoordinate ? "座標" : "分類不詳"),
         note: "重構版自動提取"
       };
     }).filter(p => p !== null);

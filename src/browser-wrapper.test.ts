@@ -15,9 +15,9 @@ describe("GoogleMapsWrapper (Refactored)", () => {
     expect(listScript).toContain(ErrorCode.AUTH_REQUIRED);
     expect(listScript).toContain(ErrorCode.SIDEBAR_NOT_FOUND);
     expect(placesScript).toContain(ErrorCode.COLLECTION_NOT_FOUND);
-    expect(placesScript).toContain(ErrorCode.STATUS_MISSING);
-    expect(placesScript).toContain(ErrorCode.CATEGORY_MISSING);
     expect(placesScript).toContain(ErrorCode.DATA_INCONSISTENCY);
+    // TDD 修復後，座標點不再拋出缺失錯誤，而是標記為座標
+    expect(placesScript).toContain("座標位置");
   });
 
   test("should include browser utility functions", () => {
