@@ -1,0 +1,22 @@
+{
+  "name": "my-places-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Google Maps places",
+  "type": "module",
+  "bin": {
+    "my-places-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test:wrapper": "tsc && node dist/test-wrapper.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.1",
+    "playwright": "^1.41.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  }
+}
