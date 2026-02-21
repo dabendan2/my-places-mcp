@@ -125,9 +125,12 @@ export class GoogleMapsWrapper {
             const categoryMatch = infoText.match(/(?:·\s*|)([\u4e00-\u9fa5a-zA-Z\s]+)$/m);
             const category = categoryMatch ? categoryMatch[1].trim() : "未知";
             
+            // 使用地點名稱拼接搜尋連結作為 URL
+            const searchUrl = `https://www.google.com/maps/search/${encodeURIComponent(name)}`;
+            
             return {
               name: name,
-              url: window.location.href,
+              url: searchUrl,
               status: status,
               category: category,
               note: "尚未實作附註完整解析"
