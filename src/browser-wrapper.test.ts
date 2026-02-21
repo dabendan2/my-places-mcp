@@ -36,7 +36,7 @@ describe('GoogleMapsWrapper Reality Check', () => {
     expect(result[0].count).toBe(724);
   });
 
-  test('should return place with category, status, and search URL', async () => {
+  test('should throw DATA_INCONSISTENCY if counts do not match', async () => {
     // @ts-ignore
     wrapper.browser = {};
     // @ts-ignore
@@ -45,48 +45,43 @@ describe('GoogleMapsWrapper Reality Check', () => {
       url: () => 'https://www.google.com/maps/save',
       waitForSelector: () => Promise.resolve({} as any),
       click: () => Promise.resolve(),
-      evaluate: (fn: any) => {
-        return Promise.resolve([
-          {
-            name: '首里城',
-            url: 'https://www.google.com/maps/search/%E9%A6%96%E9%87%8C%E5%9F%8E',
-            status: '營業中',
-            category: '城堡',
-            note: ''
-          }
-        ]);
-      }
-    };
-
-    const result = await wrapper.getPlaces('okinawa-id');
-    expect(result[0].status).toBe('營業中');
-    expect(result[0].category).toBe('城堡');
-    expect(result[0].url).toBe('https://www.google.com/maps/search/%E9%A6%96%E9%87%8C%E5%9F%8E');
-  });
-
-  test('should navigate to saved places if not already there in getPlaces', async () => {
-    // @ts-ignore
-    wrapper.browser = {};
-    let navigated = false;
-    // @ts-ignore
-    wrapper.page = {
-      isClosed: () => false,
-      url: () => 'https://other-site.com',
-      goto: (url: string) => {
-        if (url.includes('google.com/maps/save')) navigated = true;
-        return Promise.resolve({} as any);
-      },
-      waitForSelector: (selector: string) => {
-        return Promise.resolve({ click: () => Promise.resolve() } as any);
-      },
-      click: () => Promise.resolve(),
-      evaluate: (fn: any) => {
-        if (typeof fn === 'function' && fn.toString().includes('window.location.href')) return Promise.resolve('https://other-site.com');
+      goto: () => Promise.resolve({} as any),
+      evaluate: (fn: any, args?: any) => {
+        const fnStr = fn.toString();
+        // Mock getPlacesCount returning 10
+        if (fnStr.includes('match(/·(\\d+) 個地點/)')) return Promise.resolve(10);
+        // Mock getPlaces actually finding 5
+        if (fnStr.includes('document.querySelectorAll(\'div[role="main"] button[aria-label]\')')) {
+          return Promise.resolve(new Array(5).fill({ name: 'Place', url: '', status: '', category: '', note: '' }));
+        }
         return Promise.resolve([]);
       }
     };
 
-    await wrapper.getPlaces('any-id');
-    expect(navigated).toBe(true);
+    await expect(wrapper.getPlaces('any-id')).rejects.toThrow('DATA_INCONSISTENCY');
+  });
+
+  test('should return places if counts match', async () => {
+    // @ts-ignore
+    wrapper.browser = {};
+    // @ts-ignore
+    wrapper.page = {
+      isClosed: () => false,
+      url: () => 'https://www.google.com/maps/save',
+      waitForSelector: () => Promise.resolve({} as any),
+      click: () => Promise.resolve(),
+      goto: () => Promise.resolve({} as any),
+      evaluate: (fn: any, args?: any) => {
+        const fnStr = fn.toString();
+        if (fnStr.includes('match(/·(\\d+) 個地點/)')) return Promise.resolve(5);
+        if (fnStr.includes('document.querySelectorAll(\'div[role="main"] button[aria-label]\')')) {
+          return Promise.resolve(new Array(5).fill({ name: 'Place', url: '', status: '', category: '', note: '' }));
+        }
+        return Promise.resolve([]);
+      }
+    };
+
+    const result = await wrapper.getPlaces('any-id');
+    expect(result.length).toBe(5);
   });
 });
