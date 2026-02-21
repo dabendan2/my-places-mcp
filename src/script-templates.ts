@@ -124,7 +124,7 @@ export const GET_PLACES_TEMPLATE = (collectionName: string) => `
       };
     }).filter(p => p !== null);
 
-    if (expectedCount > 0 && places.length === 0) {
+    if (places.length < expectedCount) {
        throw new Error("${ErrorCode.DATA_INCONSISTENCY}");
     }
 
