@@ -9,8 +9,10 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
+    "test": "npm run test:wrapper",
     "test:wrapper": "tsc && node dist/test-wrapper.js",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "prepare": "husky"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.1",
@@ -19,6 +21,7 @@
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@types/node": "^20.11.0",
+    "husky": "^9.1.7",
     "jest": "^30.2.0",
     "ts-jest": "^29.4.6",
     "typescript": "^5.3.3"
