@@ -24,7 +24,8 @@ This project leverages OpenClaw's browser automation to interact with location-b
 #### 地點物件 (Place)
 - `name`: 地點名稱
 - `url`: 地點超連結
-- `status`: 營業狀態 (例如：營業中、已歇業、暫停營業)
+- `status`: 營業狀態 (例如：營業中、已歇業、暫停營業、地點已不存在)
+- `category`: 地點類別 (例如：拉麵、飯店、歷史地標)
 - `note`: 使用者在清單中加入的附註內容
 
 ### Tools
