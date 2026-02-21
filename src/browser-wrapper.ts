@@ -1,5 +1,3 @@
-import { chromium, Browser, Page } from "playwright";
-
 export interface Collection {
   id: string;
   name: string;
@@ -15,166 +13,132 @@ export interface Place {
   note: string;
 }
 
+/**
+ * GoogleMapsWrapper (OpenClaw Full-Auto Strict Edition)
+ * 具備完整自動化導航路徑，並保持解析結果的絕對嚴謹。
+ */
 export class GoogleMapsWrapper {
-  private browser: Browser | null = null;
-  private page: Page | null = null;
-
-  async init() {
-    try {
-      this.browser = await chromium.launch({ headless: false }).catch(err => {
-        throw new Error("BROWSER_SERVICE_NOT_FOUND: 無法啟動或連接 OpenClaw Browser 控制服務。");
-      });
-      this.page = await this.browser.newPage();
-    } catch (error: any) {
-      throw new Error(`INITIALIZATION_FAILED: 瀏覽器初始化失敗。原因: ${error.message}`);
-    }
+  get navigationUrl() {
+    return "https://www.google.com/maps/";
   }
 
-  private async ensureActiveSession() {
-    if (!this.browser || !this.page) {
-      throw new Error("SESSION_NOT_INITIALIZED: 瀏覽器尚未初始化。");
-    }
-    if (this.page.isClosed()) {
-      throw new Error("BROWSER_TAB_CLOSED: 目標分頁已關閉。");
-    }
-    try {
-      await this.page.evaluate(() => window.location.href);
-    } catch (e) {
-      throw new Error("BROWSER_CONTROL_LOST: 無法與瀏覽器通訊。");
-    }
-  }
+  /**
+   * 生成具備「自動搜尋入口」功能的腳本
+   */
+  get listCollectionsScript() {
+    return `(async () => {
+      const sleep = m => new Promise(r => setTimeout(r, m));
 
-  async listCollections(): Promise<Collection[]> {
-    await this.ensureActiveSession();
-    
-    try {
-      if (!this.page!.url().includes("google.com/maps/save")) {
-        await this.page!.goto("https://www.google.com/maps/save", { timeout: 30000 });
+      // 1. 確保位於 Google Maps
+      if (!window.location.hostname.includes("google.com")) {
+        window.location.href = "https://www.google.com/maps/";
+        return "NAVIGATING";
       }
-      await this.page!.waitForSelector('div[role="main"]', { timeout: 15000 });
 
-      const results = await this.page!.evaluate(() => {
-        const buttons = Array.from(document.querySelectorAll('button[aria-label*="地點"]'));
-        return buttons
-          .map(btn => {
-            const label = btn.getAttribute('aria-label') || "";
-            const match = label.match(/(.+) (私人|已分享|已公開)·(\d+) 個地點/);
-            if (match) {
-              const parent = btn.parentElement;
-              const id = btn.getAttribute('data-list-id') || 
-                         (parent ? parent.getAttribute('data-list-id') : null);
-
-              return {
-                id: id,
-                name: match[1].trim(),
-                visibility: match[2],
-                count: parseInt(match[3], 10)
-              };
-            }
-            return null;
-          })
-          .filter((c): c is Collection => c !== null);
-      });
-
-      // 檢查是否每個清單都有 ID
-      for (const col of results) {
-        if (!col.id) {
-          throw new Error(`ID_EXTRACTION_FAILED: 清單 "${col.name}" 缺少必要的 data-list-id。`);
+      // 2. 嘗試開啟「已儲存」側欄 (若未開啟)
+      let sidebar = document.querySelector('div[role="main"]');
+      if (!sidebar || !document.body.innerText.includes("已儲存")) {
+        const savedBtn = Array.from(document.querySelectorAll('button')).find(b => 
+          b.innerText.includes('已儲存') || b.getAttribute('aria-label')?.includes('已儲存')
+        );
+        
+        if (savedBtn) {
+          savedBtn.click();
+        } else {
+          // 嘗試透過漢堡選單
+          const menuBtn = document.querySelector('button#searchbox-hamburger') || document.querySelector('button[aria-label*="選單"]');
+          if (menuBtn) {
+            menuBtn.click();
+            await sleep(1000);
+            const menuSavedBtn = Array.from(document.querySelectorAll('span, button')).find(el => 
+              el.innerText.includes('您的地點') || el.innerText.includes('已儲存')
+            );
+            if (menuSavedBtn) menuSavedBtn.click();
+          }
         }
+        await sleep(2000); // 等待側欄渲染
+        sidebar = document.querySelector('div[role="main"]');
       }
 
-      return results as Collection[];
-    } catch (error: any) {
-      if (error.message.includes("ID_EXTRACTION_FAILED")) throw error;
-      throw new Error(`COLLECTION_FETCH_FAILED: 擷取清單失敗。原因: ${error.message}`);
-    }
-  }
-
-  async getPlacesCount(collectionId: string): Promise<number> {
-    await this.ensureActiveSession();
-    try {
-      if (!this.page!.url().includes("google.com/maps/save")) {
-        await this.page!.goto("https://www.google.com/maps/save", { timeout: 30000 });
+      // 3. 偵測登入狀態
+      if (document.body.innerText.includes("登入") && document.body.innerText.includes("帳號")) {
+        throw new Error("AUTH_REQUIRED: 偵測到未登入狀態。");
       }
-      await this.page!.waitForSelector('div[role="main"]', { timeout: 15000 });
 
-      return await this.page!.evaluate((id) => {
-        const btn = document.querySelector(`button[data-list-id="${id}"], button[aria-label*="${id}"]`);
-        if (!btn) throw new Error("COLLECTION_NOT_FOUND");
+      if (!sidebar) throw new Error("SIDEBAR_NOT_FOUND: 無法自動開啟「已儲存」側欄。");
+
+      // 3. 嚴格解析
+      const buttons = Array.from(sidebar.querySelectorAll('button[aria-label*="地點"]'));
+      return buttons.map(btn => {
         const label = btn.getAttribute('aria-label') || "";
-        const match = label.match(/·(\d+) 個地點/);
-        return match ? parseInt(match[1], 10) : 0;
-      }, collectionId);
-    } catch (error: any) {
-      if (error.message.includes("COLLECTION_NOT_FOUND")) {
-        throw new Error(`COLLECTION_NOT_FOUND: 找不到 ID 為 "${collectionId}" 的清單。`);
-      }
-      throw new Error(`COUNT_FETCH_FAILED: 無法取得清單地點總數 (ID: ${collectionId})。原因: ${error.message}`);
-    }
-  }
+        const match = label.match(/^(.+) (私人|已分享|已公開)·(\\d+) 個地點$/);
+        
+        if (!match) throw new Error("PARSE_ERROR: 清單格式異常 (" + label + ")");
 
-  async getPlaces(collectionId: string): Promise<Place[]> {
-    await this.ensureActiveSession();
+        const id = btn.getAttribute('data-list-id');
+        if (!id) throw new Error("MISSING_ID: 清單 " + match[1] + " 缺少 data-list-id。");
 
-    const expectedCount = await this.getPlacesCount(collectionId);
-
-    try {
-      const selector = `button[data-list-id="${collectionId}"], button[aria-label*="${collectionId}"]`;
-      await this.page!.waitForSelector(selector, { timeout: 10000 });
-      await this.page!.click(selector);
-      await this.page!.waitForSelector('div[role="main"]', { timeout: 15000 });
-
-      const places = await this.page!.evaluate(() => {
-        const items = Array.from(document.querySelectorAll('div[role="main"] button[aria-label]'));
-        return items
-          .map(item => {
-            const name = item.getAttribute('aria-label') || "";
-            if (name === "分享" || name === "新增地點" || name === "更多選項") return null;
-
-            const parent = item.closest('div');
-            const infoText = parent?.innerText || "";
-            const statusMatch = infoText.match(/(已歇業|暫停營業|營業中|地點已不存在)/);
-            
-            // TDD: 若找不到狀態回傳 null 以便後續檢查
-            const status = statusMatch ? statusMatch[0] : null;
-
-            const categoryMatch = infoText.match(/(?:·\s*|)([\u4e00-\u9fa5a-zA-Z\s]+)$/m);
-            // TDD: 若找不到類別回傳 null
-            const category = categoryMatch ? categoryMatch[1].trim() : null;
-            
-            return {
-              name: name,
-              url: `https://www.google.com/maps/search/${encodeURIComponent(name)}`,
-              status: status,
-              category: category,
-              note: "尚未實作附註完整解析"
-            };
-          })
-          .filter((p) => p !== null && p.name.length > 0);
+        return {
+          id: id,
+          name: match[1].trim(),
+          visibility: match[2],
+          count: parseInt(match[3], 10)
+        };
       });
-
-      // 嚴格檢查狀態與類別
-      for (const p of places) {
-        if (!p!.status) throw new Error(`STATUS_PARSE_FAILED: 地點 "${p!.name}" 的狀態解析失敗。`);
-        if (!p!.category) throw new Error(`CATEGORY_PARSE_FAILED: 地點 "${p!.name}" 的類別解析失敗。`);
-      }
-
-      if (places.length !== expectedCount) {
-        throw new Error(`DATA_INCONSISTENCY: 擷取數量 (${places.length}) 與預期總數 (${expectedCount}) 不符。`);
-      }
-
-      return places as Place[];
-    } catch (error: any) {
-      if (error.message.includes("STATUS_PARSE_FAILED") || 
-          error.message.includes("CATEGORY_PARSE_FAILED") ||
-          error.message.includes("DATA_INCONSISTENCY")) {
-        throw error;
-      }
-      throw new Error(`PLACE_FETCH_FAILED: 擷取地點失敗 (ID: ${collectionId})。原因: ${error.message}`);
-    }
+    })()`;
   }
 
-  async close() {
-    if (this.browser) await this.browser.close();
+  getPlacesScript(collectionId: string) {
+    return `(async () => {
+      const sleep = m => new Promise(r => setTimeout(r, m));
+
+      // 1. 確保位於 Google Maps
+      if (!window.location.hostname.includes("google.com")) {
+        window.location.href = "https://www.google.com/maps/";
+        return "NAVIGATING";
+      }
+
+      // 2. 尋找並進入清單 (若不在該清單內)
+      let listBtn = document.querySelector('button[data-list-id="' + collectionId + '"]');
+      if (listBtn) {
+        const label = listBtn.getAttribute('aria-label') || "";
+        const match = label.match(/·(\\d+) 個地點$/);
+        const expectedCount = match ? parseInt(match[1], 10) : 0;
+
+        listBtn.click();
+        await sleep(2000);
+
+        // 3. 抓取地點
+        const items = Array.from(document.querySelectorAll('div[role="main"] button[aria-label]'));
+        const places = items.map(item => {
+          const name = item.getAttribute('aria-label') || "";
+          if (["分享", "新增地點", "更多選項"].includes(name)) return null;
+
+          const parent = item.closest('div');
+          const infoText = parent?.innerText || "";
+          
+          const statusMatch = infoText.match(/(已歇業|暫停營業|營業中|地點已不存在)/);
+          const categoryMatch = infoText.match(/(?:·\\s*|)([\\u4e00-\\u9fa5a-zA-Z\\s]+)$/m);
+
+        if (!statusMatch) throw new Error("STATUS_MISSING: 地點 " + name + " 缺少營業狀態。");
+        if (!categoryMatch) throw new Error("CATEGORY_MISSING: 地點 " + name + " 缺少類別資訊。");
+          
+          return {
+            name: name,
+            url: "https://www.google.com/maps/search/" + encodeURIComponent(name),
+            status: statusMatch[0],
+            category: categoryMatch[1].trim(),
+            note: "自動化嚴格提取"
+          };
+        }).filter(p => p !== null);
+
+        if (places.length !== expectedCount) {
+          throw new Error("DATA_INCONSISTENCY: 數量不符 (抓取:" + places.length + ", 預期:" + expectedCount + ")");
+        }
+        return places;
+      } else {
+         throw new Error("COLLECTION_NOT_FOUND: 在目前頁面找不到 ID 為 " + collectionId + " 的清單。");
+      }
+    })()`;
   }
 }

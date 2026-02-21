@@ -9,7 +9,7 @@ import { GoogleMapsWrapper } from "./browser-wrapper.js";
 const server = new Server(
   {
     name: "my-places-mcp",
-    version: "0.1.0",
+    version: "0.2.0",
   },
   {
     capabilities: {
@@ -25,7 +25,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: "list_all_collections",
-        description: "List all saved collections/lists from Google Maps",
+        description: "List all saved collections/lists from Google Maps. Requires an attached browser tab on Google Maps.",
         inputSchema: {
           type: "object",
           properties: {},
@@ -33,13 +33,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "get_places_from_collection",
-        description: "Get places within a specific collection by collection ID",
+        description: "Get places within a specific collection. Requires an attached browser tab on the collection detail page.",
         inputSchema: {
           type: "object",
           properties: {
             collection_id: {
               type: "string",
-              description: "The unique ID of the collection (retrieved from list_all_collections)",
+              description: "The unique ID or Name of the collection",
             },
           },
           required: ["collection_id"],
@@ -52,26 +52,26 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
-  try {
-    if (name === "list_all_collections") {
-      await wrapper.init();
-      const collections = await wrapper.listCollections();
-      return {
-        content: [{ type: "text", text: JSON.stringify(collections, null, 2) }],
-      };
-    }
-
-    if (name === "get_places_from_collection") {
-      await wrapper.init();
-      const places = await wrapper.getPlaces(args?.collection_id as string);
-      return {
-        content: [{ type: "text", text: JSON.stringify(places, null, 2) }],
-      };
-    }
-  } catch (error: any) {
+  if (name === "list_all_collections") {
     return {
-      content: [{ type: "text", text: `Error: ${error.message}` }],
-      isError: true,
+      content: [
+        { 
+          type: "text", 
+          text: `請使用 browser:act 工具執行以下腳本以獲取清單：\n\nURL: ${wrapper.navigationUrl}\n\nScript:\n${wrapper.listCollectionsScript}` 
+        }
+      ],
+    };
+  }
+
+  if (name === "get_places_from_collection") {
+    const id = args?.collection_id as string;
+    return {
+      content: [
+        { 
+          type: "text", 
+          text: `請在該清單頁面使用 browser:act 工具執行以下腳本：\n\nScript:\n${wrapper.getPlacesScript(id)}` 
+        }
+      ],
     };
   }
 

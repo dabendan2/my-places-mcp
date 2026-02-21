@@ -1,36 +1,53 @@
-# my-places-mcp
+# My Places MCP Server
 
-A Model Context Protocol (MCP) server for managing personal places using OpenClaw Browser services.
+此伺服器用於提取 Google Maps 中的儲存地點清單。
 
-## Overview
-This project leverages OpenClaw's browser automation to interact with location-based services, allowing AI agents to retrieve and manage personal place lists and details.
+## 使用前要求
 
-## Features
-- **取得清單列表**: 檢索所有已儲存的地點清單。
-- **取得指定清單地點**: 傳回特定清單內的所有地點列表。
-- **未來規劃**:
-    - 編輯現有地點或清單。
-    - 刪除地點。
+1. **OpenClaw Gateway**: 需確保 OpenClaw Gateway 正在執行。
+2. **瀏覽器分頁**: 需開啟一個掛載了 **OpenClaw Browser Relay** 的 Chrome/Chromium 分頁（Badge 顯示 ON）。
+3. **Google 帳號**: 需在該分頁完成 Google 帳號登入。
 
-## API 定義
+## 使用方法
 
-### 資料結構
-#### 地點清單 (Collection)
-- `id`: 清單唯一識別碼
-- `name`: 清單名稱
-- `count`: 地點總數
-- `visibility`: 隱私權狀態 (例如：私人、已分享、公開)
+### 1. 獲取所有清單 `list_all_collections`
+列出帳號下所有已儲存的地點清單。
 
-#### 地點物件 (Place)
-- `name`: 地點名稱
-- `url`: 地點超連結
-- `status`: 營業狀態 (例如：營業中、已歇業、暫停營業、地點已不存在)
-- `category`: 地點類別 (例如：拉麵、飯店、歷史地標)
-- `note`: 使用者在清單中加入的附註內容
+- **回傳範例**:
+  ```json
+  [
+    { "id": "list_abc123", "name": "清單名稱", "count": 12, "visibility": "私人" }
+  ]
+  ```
 
-### Tools
-- `list_all_collections()`: 取得所有地點清單（含 ID、名稱與地點數量）。
-- `get_places_from_collection(collection_id: string)`: 根據清單 ID 取得該清單內的地點列表（含名稱、連結、狀態與附註）。
+### 2. 獲取地點清單 `get_places_from_collection`
+獲取指定清單內的詳細地點資訊。
 
-## Requirements
-- OpenClaw with Browser service enabled.
+- **參數**: `collection_id` (必填) - 由 `list_all_collections` 取得的 `id`。
+- **回傳範例**:
+  ```json
+  [
+    { 
+      "name": "地點名稱", 
+      "url": "https://www.google.com/maps/search/...", 
+      "status": "營業中", 
+      "category": "餐廳"
+    }
+  ]
+  ```
+
+## 錯誤代碼說明
+
+### 系統層級
+- `BROWSER_CONTROL_FAILED`: 無法連線至 OpenClaw 瀏覽器控制服務或分頁已關閉。
+- `NAVIGATING`: 正在自動導向至 Google Maps 網域，需重新執行腳本。
+- `SIDEBAR_NOT_FOUND`: 無法自動定位或開啟 Google Maps 的「已儲存」側欄。
+
+### 業務邏輯層級
+- `AUTH_REQUIRED`: 偵測到 Google 登入頁面，需使用者手動登入。
+- `COLLECTION_NOT_FOUND`: 在目前頁面找不到指定的清單 ID。
+- `PARSE_ERROR`: 清單按鈕格式不符嚴格正則表達式。
+- `MISSING_ID`: 清單項目缺失關鍵的 `data-list-id`。
+- `STATUS_MISSING`: 地點資訊中解析不到「營業狀態」。
+- `CATEGORY_MISSING`: 地點資訊中解析不到「地點類別」。
+- `DATA_INCONSISTENCY`: 實際抓取的地點數量與清單標示的總數不符。
