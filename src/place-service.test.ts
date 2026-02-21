@@ -1,23 +1,39 @@
 import { PlaceService } from "./place-service.js";
+import { execSync } from "child_process";
 
-describe("PlaceService", () => {
+jest.mock("child_process");
+
+describe("PlaceService (Native CLI)", () => {
   let service: PlaceService;
 
   beforeEach(() => {
     service = new PlaceService();
+    jest.clearAllMocks();
   });
 
-  test("listAllCollections should return tool content with script", async () => {
+  test("listAllCollections should execute CLI and return parsed JSON result", async () => {
+    const mockOutput = JSON.stringify({
+      ok: true,
+      result: [
+        { name: "想去的地點", type: "want_to_go", count: 10, visibility: "私人" }
+      ]
+    });
+    
+    (execSync as jest.Mock).mockReturnValue(mockOutput);
+
     const result = await service.listAllCollections();
-    expect(result.content[0].type).toBe("text");
-    expect(result.content[0].text).toContain("Script:");
-    expect(result.content[0].text).toContain("google.com");
+    expect(result.content[0].text).toContain("想去的地點");
+    expect(execSync).toHaveBeenCalledWith(expect.stringContaining("openclaw browser act"), expect.anything());
   });
 
-  test("getPlacesFromCollection should return tool content with id-specific script", async () => {
-    const collectionId = "my-test-id";
-    const result = await service.getPlacesFromCollection(collectionId);
-    expect(result.content[0].text).toContain(collectionId);
-    expect(result.content[0].text).toContain("scrollTo");
+  test("getPlacesFromCollection should throw NAVIGATING error when script returns it", async () => {
+    const mockOutput = JSON.stringify({
+      ok: true,
+      result: "NAVIGATING"
+    });
+    
+    (execSync as jest.Mock).mockReturnValue(mockOutput);
+
+    await expect(service.getPlacesFromCollection("Any")).rejects.toThrow("NAVIGATING");
   });
 });
