@@ -1,32 +1,29 @@
 import { GoogleMapsWrapper } from "./browser-wrapper.js";
+import { ErrorCode } from "./types.js";
 
-describe("GoogleMapsWrapper Script Generation", () => {
+describe("GoogleMapsWrapper (Refactored)", () => {
   let wrapper: GoogleMapsWrapper;
 
   beforeEach(() => {
     wrapper = new GoogleMapsWrapper();
   });
 
-  test("navigationUrl should be correct", () => {
-    expect(wrapper.navigationUrl).toBe("https://www.google.com/maps/");
+  test("should generate scripts containing normalized error codes", () => {
+    const listScript = wrapper.listCollectionsScript;
+    const placesScript = wrapper.getPlacesScript("test-id");
+
+    expect(listScript).toContain(ErrorCode.AUTH_REQUIRED);
+    expect(listScript).toContain(ErrorCode.SIDEBAR_NOT_FOUND);
+    expect(placesScript).toContain(ErrorCode.COLLECTION_NOT_FOUND);
+    expect(placesScript).toContain(ErrorCode.STATUS_MISSING);
+    expect(placesScript).toContain(ErrorCode.CATEGORY_MISSING);
+    expect(placesScript).toContain(ErrorCode.DATA_INCONSISTENCY);
   });
 
-  test("listCollectionsScript should contain core logic", () => {
-    const script = wrapper.listCollectionsScript;
-    expect(script).toContain("google.com");
-    expect(script).toContain('div[role="main"]');
-    expect(script).toContain("已儲存");
-    expect(script).toContain("AUTH_REQUIRED");
-    expect(script).toContain("PARSE_ERROR");
-  });
-
-  test("getPlacesScript should contain scrolling and parsing logic", () => {
-    const script = wrapper.getPlacesScript("test-collection-id");
-    expect(script).toContain("collectionId"); // 腳本內部使用的是參數名稱，字串拼接
-    expect(script).toContain("scrollTo");
-    expect(script).toContain("expectedCount");
-    expect(script).toContain("DATA_INCONSISTENCY");
-    expect(script).toContain("STATUS_MISSING");
-    expect(script).toContain("CATEGORY_MISSING");
+  test("should include browser utility functions", () => {
+    const listScript = wrapper.listCollectionsScript;
+    expect(listScript).toContain("const sleep =");
+    expect(listScript).toContain("const ensureGoogleMaps =");
+    expect(listScript).toContain("const checkAuth =");
   });
 });

@@ -4,12 +4,12 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { GoogleMapsWrapper } from "./browser-wrapper.js";
+import { PlaceService } from "./place-service.js";
 
 const server = new Server(
   {
     name: "my-places-mcp",
-    version: "0.2.0",
+    version: "0.3.0",
   },
   {
     capabilities: {
@@ -18,7 +18,7 @@ const server = new Server(
   }
 );
 
-const wrapper = new GoogleMapsWrapper();
+const service = new PlaceService();
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
@@ -53,26 +53,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   if (name === "list_all_collections") {
-    return {
-      content: [
-        { 
-          type: "text", 
-          text: `請使用 browser:act 工具執行以下腳本以獲取清單：\n\nURL: ${wrapper.navigationUrl}\n\nScript:\n${wrapper.listCollectionsScript}` 
-        }
-      ],
-    };
+    return service.listAllCollections();
   }
 
   if (name === "get_places_from_collection") {
     const id = args?.collection_id as string;
-    return {
-      content: [
-        { 
-          type: "text", 
-          text: `請在該清單頁面使用 browser:act 工具執行以下腳本：\n\nScript:\n${wrapper.getPlacesScript(id)}` 
-        }
-      ],
-    };
+    return service.getPlacesFromCollection(id);
   }
 
   throw new Error(`Tool not found: ${name}`);
