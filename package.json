@@ -11,6 +11,7 @@
     "start": "node dist/index.js",
     "test": "npm run test:wrapper",
     "test:wrapper": "tsc && node dist/test-wrapper.js",
+    "test:service": "tsc && node dist/test-service.js",
     "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
     "prepare": "husky"
   },

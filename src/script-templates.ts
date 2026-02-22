@@ -12,17 +12,16 @@ export const BROWSER_UTILS = `
     let sidebar = document.querySelector('div[role="main"]');
     if (!sidebar || !document.body.innerText.includes("你的地點")) {
       const savedBtn = Array.from(document.querySelectorAll('button')).find(b => 
-        b.innerText.includes('已儲存') || b.getAttribute('aria-label')?.includes('已儲存')
+        b.innerText.includes('已儲存') || b.getAttribute('aria-label')?.includes('已儲存') || b.getAttribute('aria-label')?.includes('Saved')
       );
       
       if (savedBtn) {
         savedBtn.click();
         await sleep(2000);
-      } else {
-        return null;
       }
     }
-    return document.querySelector('div[role="main"]');
+    sidebar = document.querySelector('div[role="main"]');
+    return sidebar;
   };
 
   const checkAuth = () => {
