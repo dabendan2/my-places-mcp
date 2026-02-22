@@ -38,18 +38,6 @@ describe("PlaceService (Native CLI)", () => {
     expect(result.content[0].text).toContain("BROWSER_NO_ACTIVE_TABS");
   });
 
-  test("should handle NAVIGATING retry", async () => {
-    mockExecSync
-      .mockReturnValueOnce(mockTabs())
-      .mockReturnValueOnce(mockOk("NAVIGATING"))
-      .mockReturnValueOnce(mockOk("slept"))
-      .mockReturnValueOnce(mockTabs())
-      .mockReturnValueOnce(mockOk([{ name: "RetrySuccess" }]));
-
-    const result = await service.listAllCollections();
-    expect(result.content[0].text).toContain("RetrySuccess");
-  });
-
   test("should handle CLI errors (AUTH_REQUIRED, etc)", async () => {
     mockExecSync
       .mockReturnValueOnce(mockTabs())
@@ -57,5 +45,14 @@ describe("PlaceService (Native CLI)", () => {
 
     const result = await service.listAllCollections();
     expect(result.content[0].text).toContain("AUTH_REQUIRED");
+  });
+
+  test("should handle DATA_INCONSISTENCY if count mismatch", async () => {
+    mockExecSync
+      .mockReturnValueOnce(mockTabs())
+      .mockReturnValueOnce(mockFail("DATA_INCONSISTENCY: Expected 10 but found 8"));
+
+    const result = await service.getPlacesFromCollection("Test");
+    expect(result.content[0].text).toContain("DATA_INCONSISTENCY");
   });
 });

@@ -10,7 +10,7 @@ import { ErrorCode } from "./types.js";
 export class PlaceService {
   private wrapper: GoogleMapsWrapper;
   public _exec = execSync;
-  private debug = false;
+  private debug = true;
 
   constructor() {
     this.wrapper = new GoogleMapsWrapper();
@@ -37,26 +37,21 @@ export class PlaceService {
 
     try {
       const escapedScript = script.replace(/'/g, "'\\''");
-      const command = `openclaw browser evaluate --fn '${escapedScript}' --json --timeout 30000`;
+      const command = `openclaw browser evaluate --fn '${escapedScript}' --json --timeout 60000`;
       const output = this._exec(command, { encoding: "utf8" });
       
       if (this.debug) {
         try {
           writeFileSync("/home/ubuntu/.openclaw/workspace/my-places-mcp/temp/raw_output.json", output);
-        } catch (e) {}
+        } catch (e) {
+          console.error("DEBUG_WRITE_RAW_FAILED", e);
+        }
       }
 
       const parsed = JSON.parse(this.cleanJson(output));
       if (!parsed.ok) throw new Error(parsed.error || "CLI_EXECUTION_FAILED");
       
       const result = parsed.result;
-      if (result === ErrorCode.NAVIGATING) {
-        if (retryCount < 3) {
-          this._exec("sleep 3");
-          return this.runCli(script, retryCount + 1);
-        }
-        throw new Error(ErrorCode.NAVIGATING);
-      }
       
       if (Array.isArray(result) && result.length === 0) throw new Error("NO_ELEMENTS_FOUND");
       if (typeof result === 'string' && Object.values(ErrorCode).includes(result as ErrorCode)) throw new Error(result);

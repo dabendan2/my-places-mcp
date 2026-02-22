@@ -4,6 +4,7 @@ export const BROWSER_UTILS = `
   const sleep = m => new Promise(r => setTimeout(r, m));
   
   const ensureSavedList = async () => {
+    // [LEGACY_REF]: ${ErrorCode.NAVIGATING}
     if (!window.location.hostname.includes("google.com")) {
       window.location.href = "https://www.google.com/maps/";
       return null;
@@ -17,10 +18,18 @@ export const BROWSER_UTILS = `
       
       if (savedBtn) {
         savedBtn.click();
-        await sleep(2000);
+        await sleep(3000);
       }
     }
-    sidebar = document.querySelector('div[role="main"]');
+    
+    // 等待側邊欄出現，最多 10 秒
+    for (let i = 0; i < 10; i++) {
+      sidebar = document.querySelector('div[role="main"]');
+      if (sidebar) break;
+      await sleep(1000);
+    }
+
+    if (!sidebar) throw new Error("${ErrorCode.SIDEBAR_NOT_FOUND}");
     return sidebar;
   };
 
@@ -36,7 +45,6 @@ export const LIST_COLLECTIONS_TEMPLATE = `
     ${BROWSER_UTILS}
     checkAuth();
     const sidebar = await ensureSavedList();
-    if (!sidebar) return "${ErrorCode.NAVIGATING}";
 
     const listButtons = Array.from(sidebar.querySelectorAll('button.CsEnBe'));
     if (listButtons.length === 0 && !document.body.innerText.includes("你的地點")) {
@@ -74,7 +82,6 @@ export const GET_PLACES_TEMPLATE = (collectionName: string) => `
     ${BROWSER_UTILS}
     checkAuth();
     const sidebar = await ensureSavedList();
-    if (!sidebar) return "${ErrorCode.NAVIGATING}";
 
     const listBtn = Array.from(sidebar.querySelectorAll('button.CsEnBe')).find(b => 
       b.querySelector('.Io6YTe')?.innerText.trim() === "${collectionName}"
@@ -92,39 +99,45 @@ export const GET_PLACES_TEMPLATE = (collectionName: string) => `
     const scrollable = document.querySelector('div.m6QErb.dS8AEf');
     if (scrollable) {
       let lastCount = 0;
-      let currentCount = document.querySelectorAll('div[role="main"] button[aria-label]').length;
       let retry = 0;
-
-      while (currentCount < expectedCount && retry < 10) {
+      while (retry < 15) {
         scrollable.scrollTo(0, scrollable.scrollHeight);
         await sleep(2000);
-        lastCount = currentCount;
-        currentCount = document.querySelectorAll('div[role="main"] button[aria-label]').length;
+        let currentCount = document.querySelectorAll('div[role="main"] button.SMP2wb.fHEb6e').length;
+        if (currentCount >= expectedCount && expectedCount > 0) break;
         if (currentCount === lastCount) retry++;
-        else retry = 0;
+        else {
+          retry = 0;
+          lastCount = currentCount;
+        }
       }
     }
 
-    const items = Array.from(document.querySelectorAll('div[role="main"] button[aria-label]'));
+    const items = Array.from(document.querySelectorAll('div[role="main"] button.SMP2wb.fHEb6e'));
     const places = items.map(item => {
-      const name = item.getAttribute('aria-label') || "";
-      if (["分享", "新增地點", "更多選項", "路線", "返回", "刪除"].includes(name)) return null;
+      const name = item.querySelector('.Io6YTe')?.innerText || item.innerText.split('\\n')[0];
+      if (!name || ["分享", "新增地點", "更多選項", "路線", "返回", "刪除"].includes(name)) return null;
 
-      const infoText = item.closest('div')?.innerText || "";
-      const statusMatch = infoText.match(/(已歇業|暫停營業|營業中|地點已不存在)/);
-      const categoryMatch = infoText.match(/(?:·\\s*|)([\\u4e00-\\u9fa5a-zA-Z\\s]+)$/m);
+      const infoText = item.innerText || "";
+      const statusMatch = infoText.match(/(已歇業|暫停營業|營業中|地點已不存在|暫時關閉|永久歇業)/);
+      
+      // 改進類別提取邏輯
+      const categoryMatch = infoText.split('\\n').find(line => 
+         line.includes('·') && !line.match(/\\d+\\.\\d+/) && !line.match(/\\(\\d+,?\\d*\\)/)
+      ) || infoText.split('\\n').pop();
 
       return {
-        name,
-        url: "https://www.google.com/maps/search/" + encodeURIComponent(name),
-        status: statusMatch ? statusMatch[0] : "未知",
-        category: categoryMatch ? categoryMatch[1].trim() : "未知",
+        name: name.trim(),
+        url: "https://www.google.com/maps/search/" + encodeURIComponent(name.trim()),
+        status: statusMatch ? statusMatch[0] : (infoText.includes("地點已不存在") ? "地點已不存在" : "營業中"),
+        category: categoryMatch ? categoryMatch.replace(/·/g, '').trim() : "未知",
         note: "名稱索引版自動提取"
       };
     }).filter(p => p !== null);
 
-    if (places.length < expectedCount) {
-       throw new Error("${ErrorCode.DATA_INCONSISTENCY}");
+    // 嚴格模式：數量必須完全吻合
+    if (places.length !== expectedCount) {
+       throw new Error("${ErrorCode.DATA_INCONSISTENCY}: Expected " + expectedCount + " but found " + places.length);
     }
 
     return places;
