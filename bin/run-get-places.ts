@@ -1,4 +1,4 @@
-import { PlaceService } from "./place-service.js";
+import { PlaceService } from "../src/place-service.js";
 
 async function run() {
   const service = new PlaceService();

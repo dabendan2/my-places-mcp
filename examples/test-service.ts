@@ -1,4 +1,4 @@
-import { PlaceService } from "./place-service.js";
+import { PlaceService } from "../src/place-service.js";
 import { execSync } from "child_process";
 
 /**

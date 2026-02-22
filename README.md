@@ -1,73 +1,88 @@
-# My Places MCP
+# My Places MCP Server
 
-Google 地圖「已儲存地點」提取工具。讓 AI 能夠讀取您在 Google Maps 上分類的地點清單與詳細資訊。
+基於 Model Context Protocol (MCP) 的 Google Maps 地點清單獲取服務。本服務透過 `openclaw browser` CLI 實作自動化瀏覽器操作，能夠從使用者的 Google Maps 帳號中讀取儲存的地點集合（Collections）及其詳細地點資訊。
 
-## 核心功能
+## 特色
 
-### 1. 獲取所有清單 (`list_all_collections`)
-- **用途**：列出您帳號中所有的地點清單（如：想去的地點、喜愛的地點、自定義旅遊清單）。
-- **輸入**：無。
-- **輸出**：清單物件陣列，每個物件包含：
-  - `name`: 清單名稱（作為後續查詢的關鍵字）。
-  - `type`: 類型（`want_to_go` 想去、`starred` 加星、`favorites` 喜愛、`custom` 自定義）。
-  - `count`: 地點總數。
-  - `visibility`: 隱私狀態（私人、已分享）。
+- **自動導航**：自動確保瀏覽器分頁處於 Google Maps 並進入「已儲存」地點頁面。
+- **權限檢查**：自動偵測登入狀態，若未登入將返回 `AUTH_REQUIRED` 錯誤。
+- **高強健性**：內建 UI 元素等待與重試機制，適應網路波動或頁面加載延遲。
+- **除錯友善**：發生錯誤時自動記錄截圖與 HTML 原始碼，方便快速定位問題。
 
-### 2. 獲取清單內地點 (`get_places_from_collection`)
-- **用途**：進入特定清單並抓取其中所有的地點詳細資料。
-- **參數要求**：
-  - `collectionName`: (String, 必需)。請務必傳入從 `list_all_collections` 獲取的精確 `name` 字串。例如：`"想去的地點"` 或 `"2025清邁"`。
-- **輸出**：地點物件陣列，每個物件包含：
-  - `name`: 地點名稱。
-  - `url`: Google Maps 搜尋網址。
-  - `status`: 營業狀態（營業中、已歇業、暫停營業、未知）。
-  - `category`: 地點類別（如：餐廳、咖啡廳）。
+## 系統需求
 
-## 使用者操作流程
-1. **環境準備**：確保您的 Chrome 瀏覽器已開啟並**登入 Google 帳號**。
-2. **第一步**：執行 `list_all_collections` 找到您感興趣的清單名稱。
-3. **第二步**：將該名稱傳入 `get_places_from_collection` 以獲取完整地點列表。系統會自動在瀏覽器中定位、捲動並抓取資料，您無需手動操作。
+- **Node.js**: v18.0.0+
+- **OpenClaw**: 已安裝並配置 `openclaw browser` CLI。
+- **Google Chrome**: 需安裝於系統中（服務會自動嘗試啟動具備遠端除錯埠 18800 的實例）。
+- **Display**: 需要 X11 環境（如 Ubuntu Desktop 或具備虛擬顯示器之環境）。
 
-## 常見問題與異常處理
-- **畫面跳轉中**：系統內建自動導航恢復機制。若重試 3 次失敗，會拋出 `NAVIGATING` 錯誤，此時請檢查 Chrome 是否被遮擋或卡住。
-- **需要登入**：若傳回 `AUTH_REQUIRED`，請直接在 Chrome 視窗中完成登入，系統將於下次執行時自動接續。
-- **找不到清單**：請確認傳入的 `collectionName` 與列表顯示的名稱完全一致（包含空白）。
+## 安裝
 
-## 啟動與整合
-
-此伺服器採用 Stdio 傳輸協議，可整合至任何 MCP 客戶端（如 Claude Desktop）。
-
-### 1. 建置專案
-使用前須先將 TypeScript 編譯為 JavaScript：
 ```bash
+cd my-places-mcp
 npm install
 npm run build
 ```
 
-### 2. 手動測試
-```bash
-node dist/index.js
-```
+## 使用工具 (Tools)
 
-### 3. 在 Claude Desktop 中配置
-修改 `claude_desktop_config.json`：
-```json
-{
-  "mcpServers": {
-    "my-places": {
-      "command": "node",
-      "args": ["/絕對路徑/到/my-places-mcp/dist/index.js"]
+### 1. `list_all_collections`
+獲取使用者帳號中所有儲存的地點清單（如：想去的地點、喜愛的地點、自定義清單）。
+- **輸入參數**: 無
+- **輸出範例**:
+  ```json
+  [
+    { "name": "想去的地點", "type": "want_to_go", "visibility": "私人", "count": 12 },
+    { "name": "2025 越南旅遊", "type": "custom", "visibility": "私人", "count": 8 }
+  ]
+  ```
+
+### 2. `get_places_from_collection`
+獲取特定清單內的詳細地點列表。
+- **輸入參數**: 
+  - `collection_id` (string, Required): 清單的名稱（如："想去的地點"）。
+- **輸出範例**:
+  ```json
+  [
+    {
+      "name": "Ekkamai Bus Station",
+      "url": "https://www.google.com/maps/search/Ekkamai%20Bus%20Station",
+      "status": "營業中",
+      "category": "巴士站",
+      "note": "名稱索引版自動提取"
     }
-  }
-}
-```
+  ]
+  ```
+- **核心機制**:
+  - **自動滾動**: 針對長清單，服務會自動模擬滾動操作以觸發延遲載入。
+  - **數量校驗**: 抓取完成後會比對頁面顯示的總數，若數量不符將拋出 `DATA_INCONSISTENCY` 錯誤以確保資料完整性。
+  - **狀態偵測**: 自動提取地點的營業狀態（如：已歇業、營業中）與類別。
 
-### 4. 使用 mcporter (OpenClaw) 測試
+## 除錯 (Debug)
+
+若要開啟詳細除錯日誌，請設置環境變數：
 ```bash
-openclaw mcporter call-stdio --path dist/index.js --method list_tools
+DEBUG=true
 ```
 
-## 注意事項
-- **瀏覽器依賴**：執行時必須確保已開啟一個與 OpenClaw 連接的 Chrome 瀏覽器，且該瀏覽器正顯示 Google Maps。
-- **背景執行**：本工具會自動控制瀏覽器分頁，執行期間請勿關閉該分頁。
+開啟後，所有除錯資訊將輸出至 `~/.my-places-mcp/debug/` 目錄：
+- `last_error_screenshot.png`: 發生錯誤時的網頁截圖。
+- `last_error_page_source.html`: 發生錯誤時的 DOM 原始碼。
+- `cli_exec_error.log`: 原始 CLI 執行錯誤訊息。
+- `browser_evaluate_raw_response.json`: 瀏覽器返回的原始資料。
+- `last_places_result.json`: 最近一次成功獲取的資料快照。
 
+## 專案結構
+
+- `src/core/`: 核心邏輯（服務類與瀏覽器封裝）。
+- `src/utils/`: 系統工具（X11 檢測、JSON 清洗）。
+- `tests/`: Jest 單元與整合測試。
+- `bin/`: 獨立執行的 CLI 腳本入口。
+- `examples/`: 開發範例與功能測試腳本。
+
+## 測試
+
+執行完整測試套件：
+```bash
+npm test
+```

@@ -2,6 +2,7 @@ import { GoogleMapsWrapper } from "./browser-wrapper.js";
 import { execSync } from "child_process";
 import { writeFileSync } from "fs";
 import { ErrorCode } from "./types.js";
+import { getDisplay, cleanJson } from "../utils/system.js";
 
 /**
  * PlaceService (Native CLI Execution Edition)
@@ -10,72 +11,63 @@ import { ErrorCode } from "./types.js";
 export class PlaceService {
   private wrapper: GoogleMapsWrapper;
   public _exec = execSync;
-  private debug = true;
+  private debug = process.env.DEBUG === "true";
 
   constructor() {
     this.wrapper = new GoogleMapsWrapper();
   }
 
-  private cleanJson(output: string | Buffer): string {
-    const s = typeof output === "string" ? output : output.toString("utf8");
-    const jsonMatch = s.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error(`INVALID_JSON_OUTPUT: ${s}`);
-    return jsonMatch[0];
-  }
-
   private getActiveProfile(): { name: string; hasTabs: boolean } {
-    const profilesOutput = this._exec("openclaw browser profiles --json", { encoding: "utf8" });
-    const { profiles } = JSON.parse(this.cleanJson(profilesOutput));
-    
-    const withTabs = profiles.find((p: any) => p.running && p.tabCount > 0);
-    if (withTabs) return { name: withTabs.name, hasTabs: true };
-    
-    const running = profiles.find((p: any) => p.running);
-    if (running) return { name: running.name, hasTabs: false };
+    try {
+      const profilesOutput = this._exec("openclaw browser profiles --json", { encoding: "utf8" });
+      const json = JSON.parse(cleanJson(profilesOutput));
+      const profiles = json.profiles || [];
+      
+      const withTabs = profiles.find((p: any) => p.running && p.tabCount > 0);
+      if (withTabs) return { name: withTabs.name, hasTabs: true };
+      
+      const running = profiles.find((p: any) => p.running);
+      if (running) return { name: running.name, hasTabs: false };
+    } catch (e) {
+      if (this.debug) console.warn("Failed to get active profile, falling back to 'openclaw'", e);
+    }
 
     return { name: "openclaw", hasTabs: false };
-  }
-
-  private getDisplay(): string {
-    try {
-      const x11Files = this._exec("ls /tmp/.X11-unix/", { encoding: "utf8" });
-      const match = x11Files.match(/X(\d+)/);
-      return match ? `:${match[1]}` : ":1";
-    } catch (e) {
-      return ":1";
-    }
   }
 
   private checkBrowserStatus(): { profile: string; targetId?: string } {
     const profileInfo = this.getActiveProfile();
     
     const tabsOutput = this._exec(`openclaw browser --browser-profile ${profileInfo.name} tabs --json`, { encoding: "utf8" });
-    const { tabs } = JSON.parse(this.cleanJson(tabsOutput));
+    const json = JSON.parse(cleanJson(tabsOutput));
+    const tabs = json.tabs || [];
     
     const anyPage = tabs.find((t: any) => t.type === "page");
     if (anyPage) {
-      console.log(`Forcing navigation to Google Maps on target ${anyPage.targetId}...`);
+      if (this.debug) console.log(`Forcing navigation to Google Maps on target ${anyPage.targetId}...`);
       this._exec(`openclaw browser --browser-profile ${profileInfo.name} navigate --target-id ${anyPage.targetId} "https://www.google.com/maps/"`, { encoding: "utf8" });
       return { profile: profileInfo.name, targetId: anyPage.targetId };
     }
 
     const profilesOutput = this._exec("openclaw browser profiles --json", { encoding: "utf8" });
-    const { profiles } = JSON.parse(this.cleanJson(profilesOutput));
+    const jsonProfiles = JSON.parse(cleanJson(profilesOutput));
+    const profiles = jsonProfiles.profiles || [];
     const profileDetail = profiles.find((p: any) => p.name === profileInfo.name);
 
     if (profileDetail?.running) {
-      console.log(`Profile ${profileInfo.name} is running but has no pages. Attempting to open one...`);
+      if (this.debug) console.log(`Profile ${profileInfo.name} is running but has no pages. Attempting to open one...`);
       this._exec(`openclaw browser --browser-profile ${profileInfo.name} open "https://www.google.com/maps/"`, { encoding: "utf8" });
       this._exec("sleep 3");
-      const finalTabs = this._exec(`openclaw browser --browser-profile ${profileInfo.name} tabs --json`, { encoding: "utf8" });
-      const { tabs: newTabs } = JSON.parse(this.cleanJson(finalTabs));
+      const finalTabsOutput = this._exec(`openclaw browser --browser-profile ${profileInfo.name} tabs --json`, { encoding: "utf8" });
+      const jsonFinal = JSON.parse(cleanJson(finalTabsOutput));
+      const newTabs = jsonFinal.tabs || [];
       const newPage = newTabs.find((t: any) => t.type === "page");
       return { profile: profileInfo.name, targetId: newPage?.targetId };
     }
 
-    console.log(`Starting profile ${profileInfo.name}...`);
+    if (this.debug) console.log(`Starting profile ${profileInfo.name}...`);
     try {
-      const display = this.getDisplay();
+      const display = getDisplay(this._exec);
       this._exec(`DISPLAY=${display} google-chrome --remote-debugging-port=18800 --user-data-dir=/home/ubuntu/.openclaw/browsers/openclaw > /dev/null 2>&1 &`, { encoding: "utf8" });
       this._exec("sleep 5");
       return this.checkBrowserStatus();
@@ -86,7 +78,7 @@ export class PlaceService {
 
   private runCli(script: string, retryCount = 0): any {
     const { profile, targetId } = this.checkBrowserStatus();
-    const workspacePath = "/home/ubuntu/.openclaw/workspace/my-places-mcp/temp";
+    const tempPath = "/home/ubuntu/.my-places-mcp/debug";
 
     try {
       const escapedScript = script.replace(/'/g, "'\\''");
@@ -99,25 +91,26 @@ export class PlaceService {
       } catch (execError: any) {
         const errorMsg = execError.stdout?.toString() || execError.message || "";
         if (errorMsg.includes("Execution context was destroyed") && retryCount < 1) {
-          console.warn(`Navigation detected (Context Destroyed), retrying once (1/1)...`);
+          if (this.debug) console.warn(`Navigation detected (Context Destroyed), retrying once (1/1)...`);
           this._exec("sleep 5");
           return this.runCli(script, retryCount + 1);
         }
 
         output = errorMsg;
         if (this.debug) {
-          writeFileSync(`${workspacePath}/exec_error_raw.log`, output);
-          this.captureDebugInfo(profile, workspacePath, targetId);
+          this._exec(`mkdir -p ${tempPath}`);
+          writeFileSync(`${tempPath}/cli_exec_error.log`, output);
+          this.captureDebugInfo(profile, tempPath, targetId);
         }
         throw execError;
       }
       
       if (this.debug) {
-        this._exec(`mkdir -p ${workspacePath}`);
-        writeFileSync(`${workspacePath}/raw_output.json`, output);
+        this._exec(`mkdir -p ${tempPath}`);
+        writeFileSync(`${tempPath}/browser_evaluate_raw_response.json`, output);
       }
 
-      const parsed = JSON.parse(this.cleanJson(output));
+      const parsed = JSON.parse(cleanJson(output));
       if (!parsed.ok) throw new Error(parsed.error || "CLI_EXECUTION_FAILED");
       
       const result = parsed.result;
@@ -127,7 +120,7 @@ export class PlaceService {
       return result;
     } catch (error: any) {
       if (this.debug) {
-        this.captureDebugInfo(profile, workspacePath, targetId);
+        this.captureDebugInfo(profile, tempPath, targetId);
       }
 
       const msg = error.message || "";
@@ -143,11 +136,11 @@ export class PlaceService {
       const targetIdArg = targetId ? targetId : "";
       const targetIdFlag = targetId ? `--target-id ${targetId}` : "";
       this._exec(`mkdir -p ${path}`);
-      this._exec(`openclaw browser --browser-profile ${profile} screenshot ${targetIdArg} --path ${path}/error_screen.png`);
+      this._exec(`openclaw browser --browser-profile ${profile} screenshot ${targetIdArg} --path ${path}/last_error_screenshot.png`);
       const pageSource = this._exec(`openclaw browser --browser-profile ${profile} evaluate ${targetIdFlag} --fn "() => document.documentElement.outerHTML"`, { encoding: "utf8" });
-      writeFileSync(`${path}/error_page_source.html`, pageSource);
+      writeFileSync(`${path}/last_error_page_source.html`, pageSource);
     } catch (e) {
-      console.error("DEBUG_CAPTURE_FAILED", e);
+      if (this.debug) console.error("DEBUG_CAPTURE_FAILED", e);
     }
   }
 
@@ -166,7 +159,9 @@ export class PlaceService {
       
       if (this.debug) {
         try {
-          writeFileSync("/home/ubuntu/.openclaw/workspace/my-places-mcp/temp/places_result.json", JSON.stringify(places, null, 2));
+          const tempPath = "/home/ubuntu/.my-places-mcp/debug";
+          this._exec(`mkdir -p ${tempPath}`);
+          writeFileSync(`${tempPath}/last_places_result.json`, JSON.stringify(places, null, 2));
         } catch (e) {}
       }
 

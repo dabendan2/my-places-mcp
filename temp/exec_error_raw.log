@@ -1,8 +1,0 @@
-│
-◇  Config warnings ────────────────────────────────────────────────────╮
-│                                                                      │
-│  - plugins.entries.line: plugin line: duplicate plugin id detected;  │
-│    later plugin may be overridden                                    │
-│    (/usr/lib/node_modules/openclaw/extensions/line/index.ts)         │
-│                                                                      │
-├──────────────────────────────────────────────────────────────────────╯

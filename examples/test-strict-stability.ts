@@ -1,4 +1,4 @@
-import { PlaceService } from "./place-service.js";
+import { PlaceService } from "../src/place-service.js";
 
 /**
  * 嚴格穩定性測試：

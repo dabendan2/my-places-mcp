@@ -4,7 +4,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { PlaceService } from "./place-service.js";
+import { PlaceService } from "./core/place-service.js";
 
 const server = new Server(
   {

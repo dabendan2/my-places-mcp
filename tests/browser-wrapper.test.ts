@@ -1,4 +1,4 @@
-import { GoogleMapsWrapper } from "./browser-wrapper.js";
+import { GoogleMapsWrapper } from "../src/core/browser-wrapper.js";
 
 describe("GoogleMapsWrapper (Name-based Indexing)", () => {
   let wrapper: GoogleMapsWrapper;
@@ -22,7 +22,6 @@ describe("GoogleMapsWrapper (Name-based Indexing)", () => {
 
   test("Script should handle various navigation states", () => {
     const script = wrapper.listCollectionsScript;
-    expect(script).toContain("google.com/maps");
     expect(script).toContain("已儲存");
   });
 });

@@ -1,4 +1,4 @@
-import { GoogleMapsWrapper } from "./browser-wrapper.js";
+import { GoogleMapsWrapper } from "../src/browser-wrapper.js";
 
 async function runTests() {
   const wrapper = new GoogleMapsWrapper();
