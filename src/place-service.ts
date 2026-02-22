@@ -89,6 +89,13 @@ export class PlaceService {
   async getPlacesFromCollection(collectionName: string) {
     try {
       const places = this.runCli(this.wrapper.getPlacesScript(collectionName));
+      
+      if (this.debug) {
+        try {
+          writeFileSync("/home/ubuntu/.openclaw/workspace/my-places-mcp/temp/places_result.json", JSON.stringify(places, null, 2));
+        } catch (e) {}
+      }
+
       return { content: [{ type: "text" as const, text: JSON.stringify(places, null, 2) }] };
     } catch (error: any) {
       return { content: [{ type: "text" as const, text: `Error: ${error.message}` }], isError: true };
