@@ -33,8 +33,41 @@ Google 地圖「已儲存地點」提取工具。讓 AI 能夠讀取您在 Googl
 - **需要登入**：若傳回 `AUTH_REQUIRED`，請直接在 Chrome 視窗中完成登入，系統將於下次執行時自動接續。
 - **找不到清單**：請確認傳入的 `collectionName` 與列表顯示的名稱完全一致（包含空白）。
 
-## 安裝
+## 啟動與整合
+
+此伺服器採用 Stdio 傳輸協議，可整合至任何 MCP 客戶端（如 Claude Desktop）。
+
+### 1. 建置專案
+使用前須先將 TypeScript 編譯為 JavaScript：
 ```bash
 npm install
 npm run build
 ```
+
+### 2. 手動測試
+```bash
+node dist/index.js
+```
+
+### 3. 在 Claude Desktop 中配置
+修改 `claude_desktop_config.json`：
+```json
+{
+  "mcpServers": {
+    "my-places": {
+      "command": "node",
+      "args": ["/絕對路徑/到/my-places-mcp/dist/index.js"]
+    }
+  }
+}
+```
+
+### 4. 使用 mcporter (OpenClaw) 測試
+```bash
+openclaw mcporter call-stdio --path dist/index.js --method list_tools
+```
+
+## 注意事項
+- **瀏覽器依賴**：執行時必須確保已開啟一個與 OpenClaw 連接的 Chrome 瀏覽器，且該瀏覽器正顯示 Google Maps。
+- **背景執行**：本工具會自動控制瀏覽器分頁，執行期間請勿關閉該分頁。
+

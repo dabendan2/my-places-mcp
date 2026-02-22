@@ -1,39 +1,61 @@
-import { PlaceService } from "./place-service.js";
-import { execSync } from "child_process";
+import { jest } from "@jest/globals";
 
-jest.mock("child_process");
+const mockExecSync = jest.fn();
+
+jest.unstable_mockModule("child_process", () => ({
+  execSync: mockExecSync,
+}));
+
+const { PlaceService } = await import("./place-service.js");
+
+type PlaceServiceInstance = InstanceType<typeof PlaceService>;
 
 describe("PlaceService (Native CLI)", () => {
-  let service: PlaceService;
+  let service: PlaceServiceInstance;
 
   beforeEach(() => {
     service = new PlaceService();
+    service._exec = mockExecSync as any;
     jest.clearAllMocks();
   });
 
-  test("listAllCollections should execute CLI and return parsed JSON result", async () => {
-    const mockOutput = JSON.stringify({
-      ok: true,
-      result: [
-        { name: "想去的地點", type: "want_to_go", count: 10, visibility: "私人" }
-      ]
-    });
-    
-    (execSync as jest.Mock).mockReturnValue(mockOutput);
+  const mockTabs = () => Buffer.from(JSON.stringify({ tabs: [{ url: "maps" }] }));
+  const mockOk = (result: any) => Buffer.from(JSON.stringify({ ok: true, result }));
+  const mockFail = (error: string) => Buffer.from(JSON.stringify({ ok: false, error }));
+
+  test("should handle successful execution", async () => {
+    mockExecSync
+      .mockReturnValueOnce(mockTabs())
+      .mockReturnValueOnce(mockOk([{ name: "Test" }]));
 
     const result = await service.listAllCollections();
-    expect(result.content[0].text).toContain("想去的地點");
-    expect(execSync).toHaveBeenCalledWith(expect.stringContaining("openclaw browser act"), expect.anything());
+    expect(result.content[0].text).toContain("Test");
   });
 
-  test("getPlacesFromCollection should throw NAVIGATING error when script returns it", async () => {
-    const mockOutput = JSON.stringify({
-      ok: true,
-      result: "NAVIGATING"
-    });
-    
-    (execSync as jest.Mock).mockReturnValue(mockOutput);
+  test("should handle BROWSER_NO_ACTIVE_TABS", async () => {
+    mockExecSync.mockReturnValueOnce(Buffer.from(JSON.stringify({ tabs: [] })));
+    const result = await service.listAllCollections();
+    expect(result.content[0].text).toContain("BROWSER_NO_ACTIVE_TABS");
+  });
 
-    await expect(service.getPlacesFromCollection("Any")).rejects.toThrow("NAVIGATING");
+  test("should handle NAVIGATING retry", async () => {
+    mockExecSync
+      .mockReturnValueOnce(mockTabs())
+      .mockReturnValueOnce(mockOk("NAVIGATING"))
+      .mockReturnValueOnce(mockOk("slept"))
+      .mockReturnValueOnce(mockTabs())
+      .mockReturnValueOnce(mockOk([{ name: "RetrySuccess" }]));
+
+    const result = await service.listAllCollections();
+    expect(result.content[0].text).toContain("RetrySuccess");
+  });
+
+  test("should handle CLI errors (AUTH_REQUIRED, etc)", async () => {
+    mockExecSync
+      .mockReturnValueOnce(mockTabs())
+      .mockReturnValueOnce(mockFail("AUTH_REQUIRED"));
+
+    const result = await service.listAllCollections();
+    expect(result.content[0].text).toContain("AUTH_REQUIRED");
   });
 });
