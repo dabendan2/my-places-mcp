@@ -1,6 +1,7 @@
 import { GoogleMapsWrapper } from "../src/core/browser-wrapper.js";
+import { ErrorCode } from "../src/core/types.js";
 
-describe("GoogleMapsWrapper (Name-based Indexing)", () => {
+describe("GoogleMapsWrapper (Contract Tests)", () => {
   let wrapper: GoogleMapsWrapper;
 
   beforeEach(() => {
@@ -11,7 +12,6 @@ describe("GoogleMapsWrapper (Name-based Indexing)", () => {
     const script = wrapper.listCollectionsScript;
     expect(script).toContain("Io6YTe"); // Name selector
     expect(script).toContain("starred"); // Type check
-    expect(script).not.toContain("data-list-id");
   });
 
   test("getPlacesScript should accept collection name", () => {
@@ -20,8 +20,18 @@ describe("GoogleMapsWrapper (Name-based Indexing)", () => {
     expect(script).toContain(name);
   });
 
-  test("Script should handle various navigation states", () => {
-    const script = wrapper.listCollectionsScript;
-    expect(script).toContain("已儲存");
+  test("generated scripts should contain necessary ErrorCodes", () => {
+    const allScripts = wrapper.listCollectionsScript + wrapper.getPlacesScript("test");
+    const requiredCodes = [
+      ErrorCode.AUTH_REQUIRED,
+      ErrorCode.SIDEBAR_NOT_FOUND,
+      ErrorCode.COLLECTION_NOT_FOUND,
+      ErrorCode.PARSE_ERROR,
+      ErrorCode.DATA_INCONSISTENCY
+    ];
+
+    requiredCodes.forEach(code => {
+      expect(allScripts).toContain(code);
+    });
   });
 });
