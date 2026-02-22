@@ -1,6 +1,6 @@
 import { GoogleMapsWrapper } from "./browser-wrapper.js";
 import { execSync } from "child_process";
-import { writeFileSync } from "fs";
+import { writeFileSync, mkdirSync } from "fs";
 import { ErrorCode } from "./types.js";
 import { getDisplay, cleanJson } from "../utils/system.js";
 
@@ -98,16 +98,16 @@ export class PlaceService {
 
         output = errorMsg;
         if (this.debug) {
-          this._exec(`mkdir -p ${tempPath}`);
-          writeFileSync(`${tempPath}/cli_exec_error.log`, output);
+          try { mkdirSync(tempPath, { recursive: true }); } catch (e) {}
+          try { writeFileSync(`${tempPath}/cli_exec_error.log`, output); } catch (e) {}
           this.captureDebugInfo(profile, tempPath, targetId);
         }
         throw execError;
       }
       
       if (this.debug) {
-        this._exec(`mkdir -p ${tempPath}`);
-        writeFileSync(`${tempPath}/browser_evaluate_raw_response.json`, output);
+        try { mkdirSync(tempPath, { recursive: true }); } catch (e) {}
+        try { writeFileSync(`${tempPath}/browser_evaluate_raw_response.json`, output); } catch (e) {}
       }
 
       const parsed = JSON.parse(cleanJson(output));
@@ -135,10 +135,10 @@ export class PlaceService {
     try {
       const targetIdArg = targetId ? targetId : "";
       const targetIdFlag = targetId ? `--target-id ${targetId}` : "";
-      this._exec(`mkdir -p ${path}`);
+      try { mkdirSync(path, { recursive: true }); } catch (e) {}
       this._exec(`openclaw browser --browser-profile ${profile} screenshot ${targetIdArg} --path ${path}/last_error_screenshot.png`);
       const pageSource = this._exec(`openclaw browser --browser-profile ${profile} evaluate ${targetIdFlag} --fn "() => document.documentElement.outerHTML"`, { encoding: "utf8" });
-      writeFileSync(`${path}/last_error_page_source.html`, pageSource);
+      try { writeFileSync(`${path}/last_error_page_source.html`, pageSource); } catch (e) {}
     } catch (e) {
       if (this.debug) console.error("DEBUG_CAPTURE_FAILED", e);
     }
@@ -149,7 +149,8 @@ export class PlaceService {
       const collections = this.runCli(this.wrapper.listCollectionsScript);
       return { content: [{ type: "text" as const, text: JSON.stringify(collections, null, 2) }] };
     } catch (error: any) {
-      return { content: [{ type: "text" as const, text: `Error: ${error.message}` }], isError: true };
+      const msg = error.stdout?.toString() || error.message || "UNKNOWN_ERROR";
+      return { content: [{ type: "text" as const, text: `Error: ${msg}` }], isError: true };
     }
   }
 
@@ -160,14 +161,15 @@ export class PlaceService {
       if (this.debug) {
         try {
           const tempPath = "/home/ubuntu/.my-places-mcp/debug";
-          this._exec(`mkdir -p ${tempPath}`);
+          mkdirSync(tempPath, { recursive: true });
           writeFileSync(`${tempPath}/last_places_result.json`, JSON.stringify(places, null, 2));
         } catch (e) {}
       }
 
       return { content: [{ type: "text" as const, text: JSON.stringify(places, null, 2) }] };
     } catch (error: any) {
-      return { content: [{ type: "text" as const, text: `Error: ${error.message}` }], isError: true };
+      const msg = error.stdout?.toString() || error.message || "UNKNOWN_ERROR";
+      return { content: [{ type: "text" as const, text: `Error: ${msg}` }], isError: true };
     }
   }
 }
