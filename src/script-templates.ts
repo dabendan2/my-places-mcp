@@ -4,32 +4,32 @@ export const BROWSER_UTILS = `
   const sleep = m => new Promise(r => setTimeout(r, m));
   
   const ensureSavedList = async () => {
-    // [LEGACY_REF]: ${ErrorCode.NAVIGATING}
-    if (!window.location.hostname.includes("google.com")) {
-      window.location.href = "https://www.google.com/maps/";
-      return null;
-    }
+    // [STRICT_WAIT]: 既然上層 PlaceService 已經透過 browser navigate 強制跳轉並等待完成
+    // 此處腳本僅需專注於尋找按鈕與開啟側邊欄
     
-    let sidebar = document.querySelector('div[role="main"]');
-    if (!sidebar || !document.body.innerText.includes("你的地點")) {
-      const savedBtn = Array.from(document.querySelectorAll('button')).find(b => 
-        b.innerText.includes('已儲存') || b.getAttribute('aria-label')?.includes('已儲存') || b.getAttribute('aria-label')?.includes('Saved')
-      );
-      
-      if (savedBtn) {
-        savedBtn.click();
-        await sleep(3000);
-      }
-    }
-    
-    // 等待側邊欄出現，最多 10 秒
+    let savedBtn = null;
     for (let i = 0; i < 10; i++) {
-      sidebar = document.querySelector('div[role="main"]');
-      if (sidebar) break;
+      savedBtn = Array.from(document.querySelectorAll('button')).find(b => 
+        b.innerText.includes('已儲存') || 
+        b.getAttribute('aria-label')?.includes('已儲存') || 
+        b.getAttribute('aria-label')?.includes('Saved')
+      );
+      if (savedBtn) break;
       await sleep(1000);
     }
 
-    if (!sidebar) throw new Error("${ErrorCode.SIDEBAR_NOT_FOUND}");
+    if (!savedBtn) throw new Error("${ErrorCode.SIDEBAR_NOT_FOUND}: MISSING_SAVED_BTN");
+
+    savedBtn.click();
+    
+    let sidebar = null;
+    for (let i = 0; i < 10; i++) {
+      sidebar = document.querySelector('div[role="main"]');
+      if (sidebar && (document.body.innerText.includes("你的地點") || document.body.innerText.includes("Your lists"))) break;
+      await sleep(1000);
+    }
+
+    if (!sidebar) throw new Error("${ErrorCode.SIDEBAR_NOT_FOUND}: PANEL_TIMEOUT");
     return sidebar;
   };
 

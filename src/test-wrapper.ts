@@ -9,7 +9,6 @@ async function runTests() {
 
   const expectedCodes = [
     // 系統層級
-    "NAVIGATING",
     "SIDEBAR_NOT_FOUND",
     // 業務邏輯層級
     "AUTH_REQUIRED",
