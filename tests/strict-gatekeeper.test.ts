@@ -36,7 +36,7 @@ describe("Strict Version Gatekeeper (TDD)", () => {
   });
 
   test("should detect Flow B", () => {
-    const modernHtml = '<div class="m6QErb WNBkOb"></div>';
+    const modernHtml = '<div class="m6QErb WNBkOb XiKgde"></div>';
     expect(runTemplateInMock(modernHtml)).toBe("B");
   });
 });

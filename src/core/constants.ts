@@ -92,16 +92,50 @@ const FLOW_A = {
   listCollections: `
     const sidebar = document.querySelector('div[role="main"]');
     const items = Array.from(sidebar.querySelectorAll('button.CsEnBe'));
-    return items.map(btn => {
+    const results = [];
+    
+    for (const btn of items) {
       const meta = btn.querySelector('.gSkmPd')?.innerText || "";
-      return {
-        name: btn.querySelector('.Io6YTe')?.innerText?.trim() || "",
-        type: "custom",
-        visibility: meta.includes('·') ? meta.split('·')[0].trim() : (meta.includes('私人') ? '私人' : '未知'),
-        count: parseInt(meta.match(/(\\d+)/)?.[1] || "0", 10),
+      const name = btn.querySelector('.Io6YTe')?.innerText?.trim() || "";
+      const symbolChar = btn.querySelector('.google-symbols')?.innerText || "";
+      const symbolClasses = btn.querySelector('.google-symbols')?.className || "";
+      
+      let type = "custom";
+      if (symbolClasses.includes('JTqyM') || symbolChar === '') type = "want_to_go";
+      else if (symbolClasses.includes('IheHDf') || symbolChar === '') type = "favorites";
+      else if (name === "已加星號的地點" || name === "Starred places" || symbolChar === '') type = "starred";
+
+      const countMatch = meta.match(/(\\d+)/);
+      let count = countMatch ? parseInt(countMatch[1], 10) : -1;
+
+      // 如果抓不到數量且是內建清單，點進去抓取上方標題列的數量
+      if (count === -1 && type !== "custom") {
+        btn.click();
+        await sleep(1500);
+        const headerCountMatch = document.body.innerText.match(/·\\s*(\\d+)\\s*個地點/);
+        if (headerCountMatch) {
+          count = parseInt(headerCountMatch[1], 10);
+        }
+        // 回到清單頁面
+        const backBtn = document.querySelector('button[aria-label*="返回"], button[aria-label*="Back"]');
+        if (backBtn) {
+          backBtn.click();
+          await sleep(1000);
+        } else {
+          // 若沒找到返回鍵，重新導航至儲存頁面
+          await navigateToSaved();
+        }
+      }
+
+      results.push({
+        name,
+        type,
+        visibility: meta.includes('·') ? meta.split('·')[0].trim() : (meta.includes('私人') ? '私人' : (meta.trim() || '未知')),
+        count,
         flow: "A"
-      };
-    });
+      });
+    }
+    return results;
   `,
   getPlaces: (name) => `
     const sidebar = document.querySelector('div[role="main"]');
@@ -129,7 +163,9 @@ const FLOW_B = {
       b.querySelector('.Io6YTe') || b.querySelector('.gSkmPd')
     );
     if (listButtons.length === 0) throw new Error("${ErrorCode.FLOW_B_STRUCTURE_CHANGED}");
-    return listButtons.map(btn => {
+    
+    const results = [];
+    for (const btn of listButtons) {
       const meta = btn.querySelector('.gSkmPd')?.innerText || "";
       const rawName = btn.querySelector('.Io6YTe')?.innerText?.trim() || btn.innerText.split('\\n').find(l => !/[\\u2000-\\uFFFF]/.test(l))?.trim() || "";
       const name = rawName.replace(/^[\\u2000-\\uFFFF]/, '').trim();
@@ -139,14 +175,34 @@ const FLOW_B = {
       else if (name === "喜愛的地點" || name === "Favorites") type = "favorites";
       else if (name === "標記的地點" || name === "Starred places") type = "starred";
 
-      return {
+      const countMatch = meta.match(/(\\d+)/);
+      let count = countMatch ? parseInt(countMatch[1], 10) : -1;
+
+      if (count === -1 && type !== "custom") {
+        btn.click();
+        await sleep(1500);
+        const headerCountMatch = document.body.innerText.match(/·\\s*(\\d+)\\s*個地點/);
+        if (headerCountMatch) {
+          count = parseInt(headerCountMatch[1], 10);
+        }
+        const backBtn = document.querySelector('button[aria-label*="返回"], button[aria-label*="Back"]');
+        if (backBtn) {
+          backBtn.click();
+          await sleep(1000);
+        } else {
+          await navigateToSaved();
+        }
+      }
+
+      results.push({
         name,
         type,
         visibility: meta.includes('·') ? meta.split('·')[0].trim() : (meta.includes('私人') ? '私人' : '未知'),
-        count: parseInt(meta.match(/(\\d+)/)?.[1] || "0", 10),
+        count,
         flow: "B"
-      };
-    });
+      });
+    }
+    return results;
   `,
   getPlaces: (name) => `
     const listBtn = Array.from(document.querySelectorAll('button')).find(b => {

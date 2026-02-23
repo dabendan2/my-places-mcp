@@ -47,7 +47,15 @@ export class PlaceService {
         throw new Error(errorMsg);
       }
 
-      const parsed = JSON.parse(cleanJson(stdout));
+      let parsed;
+      try {
+        parsed = JSON.parse(cleanJson(stdout));
+      } catch (parseError) {
+        // 如果 JSON 解析失敗，可能是輸出包含了其他非 JSON 的訊息，或者是錯誤訊息
+        if (this.debug) console.error("JSON_PARSE_ERROR", stdout);
+        throw new Error(`JSON_PARSE_FAILED: ${stdout.substring(0, 100)}...`);
+      }
+
       if (!parsed.ok) throw new Error(parsed.error || "CLI_EXECUTION_FAILED");
       
       const evalResult = parsed.result;
@@ -73,7 +81,14 @@ export class PlaceService {
       const targetIdArg = targetId ? targetId : "";
       const targetIdFlag = targetId ? `--target-id ${targetId}` : "";
       try { mkdirSync(path, { recursive: true }); } catch (e) {}
-      this._exec(`openclaw browser --browser-profile ${profile} screenshot ${targetIdArg} --path ${path}/last_error_screenshot.png`);
+      
+      const screenshotOutput = this._exec(`openclaw browser --browser-profile ${profile} screenshot ${targetIdArg}`, { encoding: "utf8" });
+      const mediaMatch = screenshotOutput.match(/MEDIA:\s*(.+)/);
+      if (mediaMatch && mediaMatch[1]) {
+        const srcPath = mediaMatch[1].trim();
+        this._exec(`cp "${srcPath}" "${path}/last_error_screenshot.png"`);
+      }
+
       const pageSource = this._exec(`openclaw browser --browser-profile ${profile} evaluate ${targetIdFlag} --fn "() => document.documentElement.outerHTML"`, { encoding: "utf8" });
       try { writeFileSync(`${path}/last_error_page_source.html`, pageSource); } catch (e) {}
     } catch (e) {
@@ -87,7 +102,7 @@ export class PlaceService {
       return { content: [{ type: "text" as const, text: JSON.stringify(collections, null, 2) }] };
     } catch (error: any) {
       const msg = error.message || "UNKNOWN_ERROR";
-      throw new Error(msg);
+      return { content: [{ type: "text" as const, text: `Error: ${msg}` }], isError: true };
     }
   }
 
@@ -105,7 +120,7 @@ export class PlaceService {
       return { content: [{ type: "text" as const, text: JSON.stringify(places, null, 2) }] };
     } catch (error: any) {
       const msg = error.message || "UNKNOWN_ERROR";
-      throw new Error(msg);
+      return { content: [{ type: "text" as const, text: `Error: ${msg}` }], isError: true };
     }
   }
 }

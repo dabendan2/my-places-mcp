@@ -1,0 +1,226 @@
+[
+  {
+    "name": "想去的地點",
+    "type": "want_to_go",
+    "visibility": "私人",
+    "count": 725,
+    "flow": "A"
+  },
+  {
+    "name": "停車場",
+    "type": "custom",
+    "visibility": "私人",
+    "count": 265,
+    "flow": "A"
+  },
+  {
+    "name": "喜愛的地點",
+    "type": "favorites",
+    "visibility": "私人",
+    "count": 302,
+    "flow": "A"
+  },
+  {
+    "name": "新宿週邊",
+    "type": "custom",
+    "visibility": "已分享",
+    "count": 13,
+    "flow": "A"
+  },
+  {
+    "name": "充電站",
+    "type": "custom",
+    "visibility": "私人",
+    "count": 22,
+    "flow": "A"
+  },
+  {
+    "name": "廢墟",
+    "type": "custom",
+    "visibility": "私人",
+    "count": 24,
+    "flow": "A"
+  },
+  {
+    "name": "2025 台南",
+    "type": "custom",
+    "visibility": "私人",
+    "count": 7,
+    "flow": "A"
+  },
+  {
+    "name": "平日限定",
+    "type": "custom",
+    "visibility": "私人",
+    "count": 16,
+    "flow": "A"
+  },
+  {
+    "name": "2025清邁",
+    "type": "custom",
+    "visibility": "私人",
+    "count": 10,
+    "flow": "A"
+  },
+  {
+    "name": "約會選擇",
+    "type": "custom",
+    "visibility": "私人",
+    "count": 2,
+    "flow": "A"
+  },
+  {
+    "name": "0524 台南",
+    "type": "custom",
+    "visibility": "私人",
+    "count": 8,
+    "flow": "A"
+  },
+  {
+    "name": "Hanoi",
+    "type": "custom",
+    "visibility": "已分享",
+    "count": 58,
+    "flow": "A"
+  },
+  {
+    "name": "0509",
+    "type": "custom",
+    "visibility": "已分享",
+    "count": 5,
+    "flow": "A"
+  },
+  {
+    "name": "1223 阿里山",
+    "type": "custom",
+    "visibility": "私人",
+    "count": 19,
+    "flow": "A"
+  },
+  {
+    "name": "河口湖",
+    "type": "custom",
+    "visibility": "已分享",
+    "count": 31,
+    "flow": "A"
+  },
+  {
+    "name": "爽米愛漢堡",
+    "type": "custom",
+    "visibility": "已分享",
+    "count": 4,
+    "flow": "A"
+  },
+  {
+    "name": "0327",
+    "type": "custom",
+    "visibility": "已分享",
+    "count": 2,
+    "flow": "A"
+  },
+  {
+    "name": "日光",
+    "type": "custom",
+    "visibility": "私人",
+    "count": 23,
+    "flow": "A"
+  },
+  {
+    "name": "0901 清境自駕",
+    "type": "custom",
+    "visibility": "私人",
+    "count": 4,
+    "flow": "A"
+  },
+  {
+    "name": "0623 自駕台中",
+    "type": "custom",
+    "visibility": "私人",
+    "count": 10,
+    "flow": "A"
+  },
+  {
+    "name": "2023-06 首爾",
+    "type": "custom",
+    "visibility": "已分享",
+    "count": 18,
+    "flow": "A"
+  },
+  {
+    "name": "裝潢",
+    "type": "custom",
+    "visibility": "私人",
+    "count": 32,
+    "flow": "A"
+  },
+  {
+    "name": "建案",
+    "type": "custom",
+    "visibility": "私人",
+    "count": 10,
+    "flow": "A"
+  },
+  {
+    "name": "0129",
+    "type": "custom",
+    "visibility": "已分享",
+    "count": 1,
+    "flow": "A"
+  },
+  {
+    "name": "冰島",
+    "type": "custom",
+    "visibility": "已分享",
+    "count": 25,
+    "flow": "A"
+  },
+  {
+    "name": "沖繩",
+    "type": "custom",
+    "visibility": "私人",
+    "count": 13,
+    "flow": "A"
+  },
+  {
+    "name": "六本木週邊",
+    "type": "custom",
+    "visibility": "已分享",
+    "count": 7,
+    "flow": "A"
+  },
+  {
+    "name": "北海岸小清新",
+    "type": "custom",
+    "visibility": "已分享",
+    "count": 4,
+    "flow": "A"
+  },
+  {
+    "name": "旅遊計畫",
+    "type": "custom",
+    "visibility": "私人",
+    "count": 0,
+    "flow": "A"
+  },
+  {
+    "name": "Saved places",
+    "type": "custom",
+    "visibility": "私人",
+    "count": 0,
+    "flow": "A"
+  },
+  {
+    "name": "已加星號的地點",
+    "type": "starred",
+    "visibility": "私人",
+    "count": 0,
+    "flow": "A"
+  },
+  {
+    "name": "Hanoi",
+    "type": "custom",
+    "visibility": "作者：Yakult Wang",
+    "count": 58,
+    "flow": "A"
+  }
+]

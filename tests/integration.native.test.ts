@@ -14,7 +14,7 @@ describe('PlaceService Integration (Node Native Test)', () => {
     
     if (result.isError) {
       const errorText = result.content[0].text;
-      const skipKeywords = ["BROWSER_CONNECTION_FAILED", "AUTH_REQUIRED", "BROWSER_NO_ACTIVE_TABS", "SIDEBAR_NOT_FOUND"];
+      const skipKeywords = ["AUTH_REQUIRED"];
       if (skipKeywords.some(kw => errorText.includes(kw))) {
         console.warn(`[Skipped] Pre-condition not met: ${errorText}`);
         return;

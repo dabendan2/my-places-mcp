@@ -7,24 +7,26 @@ export class BrowserManager {
   public getActiveProfile(): { name: string; hasTabs: boolean } {
     try {
       const profilesOutput = this._exec("openclaw browser profiles --json", { encoding: "utf8" });
+      if (this.debug) console.log("DEBUG: profiles output:", profilesOutput);
       const json = JSON.parse(cleanJson(profilesOutput));
       const profiles = json.profiles || [];
       
+      // 1. 優先尋找目前正在運行且有分頁的 profile
       const withTabs = profiles.find((p: any) => p.running && p.tabCount > 0);
       if (withTabs) return { name: withTabs.name, hasTabs: true };
-      
-      const running = profiles.find((p: any) => p.running);
-      if (running) return { name: running.name, hasTabs: false };
     } catch (e) {
       if (this.debug) console.warn("Failed to get active profile, falling back to 'openclaw'", e);
     }
+    // Fallback: 回傳預設值 "openclaw"
     return { name: "openclaw", hasTabs: false };
   }
 
   public checkBrowserStatus(): { profile: string; targetId?: string } {
     const profileInfo = this.getActiveProfile();
+    if (this.debug) console.log("DEBUG: active profile:", profileInfo);
     
     const tabsOutput = this._exec(`openclaw browser --browser-profile ${profileInfo.name} tabs --json`, { encoding: "utf8" });
+    if (this.debug) console.log("DEBUG: tabs output:", tabsOutput);
     const json = JSON.parse(cleanJson(tabsOutput));
     const tabs = json.tabs || [];
     
