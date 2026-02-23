@@ -1,6 +1,6 @@
-import test, { describe, before } from 'node:test';
+import { describe, before, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { PlaceService } from '../src/core/place-service.js';
+import { PlaceService } from '../dist/core/place-service.js';
 
 describe('PlaceService Integration (Node Native Test)', () => {
   let service: PlaceService;
@@ -9,7 +9,7 @@ describe('PlaceService Integration (Node Native Test)', () => {
     service = new PlaceService();
   });
 
-  test('listAllCollections should return collections with valid structure', async () => {
+  it('listAllCollections should return collections with valid structure', async () => {
     const result = await service.listAllCollections();
     
     if (result.isError) {
@@ -28,7 +28,7 @@ describe('PlaceService Integration (Node Native Test)', () => {
     console.log(`[Success] Found ${collections.length} collections.`);
   });
 
-  test('getPlacesFromCollection should return places for a specific list', async () => {
+  it('getPlacesFromCollection should return places for a specific list', async () => {
     // 試圖抓取「想去的地點」或第一個可用的清單
     const listResult = await service.listAllCollections();
     if (listResult.isError) return;

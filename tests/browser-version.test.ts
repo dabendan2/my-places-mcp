@@ -1,7 +1,7 @@
 import { jest } from "@jest/globals";
 import { BrowserManager } from "../src/core/browser-manager.js";
 
-describe("BrowserManager Version Detection", () => {
+describe("BrowserManager Flow Detection", () => {
   let manager: BrowserManager;
   let mockExec: any;
 
@@ -10,23 +10,23 @@ describe("BrowserManager Version Detection", () => {
     manager = new BrowserManager(mockExec, true);
   });
 
-  test("should detect LEGACY version when .CsEnBe elements exist", async () => {
+  test("should detect flow A when role=main exists", async () => {
     mockExec.mockReturnValueOnce(JSON.stringify({
       ok: true,
-      result: true // .CsEnBe exists
+      result: "A"
     }));
 
-    const version = await (manager as any).detectVersion("test-tab", "openclaw");
-    expect(version).toBe("LEGACY");
+    const flow = await (manager as any).detectFlow("test-tab", "openclaw");
+    expect(flow).toBe("A");
   });
 
-  test("should detect MODERN version when .CsEnBe missing and new elements exist", async () => {
+  test("should detect flow B when specific containers exist", async () => {
     mockExec.mockReturnValueOnce(JSON.stringify({
       ok: true,
-      result: false // .CsEnBe missing
+      result: "B"
     }));
 
-    const version = await (manager as any).detectVersion("test-tab", "openclaw");
-    expect(version).toBe("MODERN");
+    const flow = await (manager as any).detectFlow("test-tab", "openclaw");
+    expect(flow).toBe("B");
   });
 });

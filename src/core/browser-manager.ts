@@ -64,22 +64,24 @@ export class BrowserManager {
     }
   }
 
-  public async detectVersion(targetId: string, profile: string): Promise<string> {
+  public async detectFlow(targetId: string, profile: string): Promise<string> {
     const cmd = `openclaw browser --browser-profile ${profile} act --target-id ${targetId} --kind evaluate --fn "(() => {
-      if (document.querySelector('div[role=\\"main\\"]')) return 'LEGACY';
-      if (document.querySelector('div.m6QErb.XiKgde')) return 'MODERN';
+      const isLegacy = !!document.querySelector('div[role=\\"main\\"]');
+      if (isLegacy) return 'A';
+      const containers = Array.from(document.querySelectorAll('div.m6QErb'));
+      if (containers.some(c => c.className.includes('WNBkOb') && c.className.includes('XiKgde'))) return 'B';
       return 'UNKNOWN';
     })()" --json`;
     
     try {
       const output = this._exec(cmd, { encoding: "utf8" });
       const json = JSON.parse(cleanJson(output));
-      if (!json.ok) throw new Error(json.error || "VERSION_DETECTION_FAILED");
-      const version = json.result;
-      if (version === "UNKNOWN") throw new Error("ERROR_UNKNOWN_VERSION");
-      return version;
+      if (!json.ok) throw new Error(json.error || "FLOW_DETECTION_FAILED");
+      const flow = json.result;
+      if (flow === "UNKNOWN") throw new Error("ERROR_UNKNOWN_FLOW");
+      return flow;
     } catch (e: any) {
-      throw new Error(`VERSION_DETECTION_FAILED: ${e.message}`);
+      throw new Error(`FLOW_DETECTION_FAILED: ${e.message}`);
     }
   }
 }

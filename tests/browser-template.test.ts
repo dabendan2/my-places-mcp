@@ -30,7 +30,7 @@ describe("Browser Templates (TDD)", () => {
     return await fn(document, window, window.sleep);
   };
 
-  test("LEGACY: should parse collections using button.CsEnBe", async () => {
+  test("Flow A: should parse collections using button.CsEnBe", async () => {
     document.body.innerHTML = `
       <div role="main">
         <button class="CsEnBe">
@@ -43,12 +43,12 @@ describe("Browser Templates (TDD)", () => {
     `;
 
     const result = await runTemplate(LIST_COLLECTIONS_TEMPLATE);
-    expect(result).toContainEqual(expect.objectContaining({ name: "Legacy List" }));
+    expect(result).toContainEqual(expect.objectContaining({ name: "Legacy List", flow: "A" }));
   });
 
-  test("MODERN: should parse collections using text-based matching when .CsEnBe missing", async () => {
+  test("Flow B: should parse collections using container markers", async () => {
     document.body.innerHTML = `
-      <div role="main">
+      <div class="m6QErb WNBkOb XiKgde">
         <button>
           <div class="Io6YTe">Modern List</div>
           <div class="gSkmPd">私人·10 個地點</div>
@@ -59,6 +59,6 @@ describe("Browser Templates (TDD)", () => {
     `;
 
     const result = await runTemplate(LIST_COLLECTIONS_TEMPLATE);
-    expect(result).toContainEqual(expect.objectContaining({ name: "Modern List" }));
+    expect(result).toContainEqual(expect.objectContaining({ name: "Modern List", flow: "B" }));
   });
 });

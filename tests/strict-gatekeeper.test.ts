@@ -17,12 +17,12 @@ describe("Strict Version Gatekeeper (TDD)", () => {
       }
     };
 
-    const detectorMatch = BROWSER_UTILS.match(/const detectVersion = \(\) => \{([\s\S]*?)\};/);
+    const detectorMatch = BROWSER_UTILS.match(/const detectFlow = \(\) => \{([\s\S]*?)\};/);
     const detectorBody = detectorMatch ? detectorMatch[1] : "";
     
     // 將 Array.from(document.querySelectorAll(...)) 模擬
-    const detectVersion = new Function('document', 'Array', detectorBody);
-    return detectVersion(mockDocument, Array);
+    const detectFlow = new Function('document', 'Array', detectorBody);
+    return detectFlow(mockDocument, Array);
   };
 
   test("should return UNKNOWN when no features match", () => {

@@ -6,7 +6,7 @@ export enum ErrorCode {
   BROWSER_NO_ACTIVE_TABS = "BROWSER_NO_ACTIVE_TABS",
   PARSE_ERROR = "PARSE_ERROR",
   DATA_INCONSISTENCY = "DATA_INCONSISTENCY",
-  ERROR_UNKNOWN_VERSION = "ERROR_UNKNOWN_VERSION",
+  ERROR_UNKNOWN_FLOW = "ERROR_UNKNOWN_FLOW",
   FLOW_B_STRUCTURE_CHANGED = "FLOW_B_STRUCTURE_CHANGED"
 }
 
@@ -44,10 +44,10 @@ export const BROWSER_UTILS = `
     await sleep(3000);
   };
 
-  const detectVersion = () => {
+  const detectFlow = () => {
     const isLegacy = !!document.querySelector('div[role="main"]');
     if (isLegacy) return 'A';
-    // Version B 特徵：存在 m6QErb 且包含特定的組合類別
+    // Flow B 特徵：存在 m6QErb 且包含特定的組合類別
     const containers = Array.from(document.querySelectorAll('div.m6QErb'));
     if (containers.some(c => c.className.includes('WNBkOb') && c.className.includes('XiKgde'))) return 'B';
     return 'UNKNOWN';
@@ -233,9 +233,9 @@ export const LIST_COLLECTIONS_TEMPLATE = `
     ${BROWSER_UTILS}
     checkAuth();
     await navigateToSaved();
-    const version = detectVersion();
-    if (version === 'UNKNOWN') throw new Error("${ErrorCode.ERROR_UNKNOWN_VERSION}");
-    if (version === 'A') {
+    const flow = detectFlow();
+    if (flow === 'UNKNOWN') throw new Error("${ErrorCode.ERROR_UNKNOWN_FLOW}");
+    if (flow === 'A') {
       ${FLOW_A.listCollections}
     } else {
       ${FLOW_B.listCollections}
@@ -248,9 +248,9 @@ export const GET_PLACES_TEMPLATE = (collectionName: string) => `
     ${BROWSER_UTILS}
     checkAuth();
     await navigateToSaved();
-    const version = detectVersion();
-    if (version === 'UNKNOWN') throw new Error("${ErrorCode.ERROR_UNKNOWN_VERSION}");
-    if (version === 'A') {
+    const flow = detectFlow();
+    if (flow === 'UNKNOWN') throw new Error("${ErrorCode.ERROR_UNKNOWN_FLOW}");
+    if (flow === 'A') {
       ${FLOW_A.getPlaces(collectionName)}
     } else {
       ${FLOW_B.getPlaces(collectionName)}

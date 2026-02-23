@@ -10,6 +10,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+    "test:native": "node --test tests/integration.native.test.ts",
     "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
     "run:get-places": "tsc && node dist/bin/run-get-places.js",
     "prepare": "husky"

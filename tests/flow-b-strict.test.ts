@@ -9,7 +9,9 @@ describe("TDD: Flow B Structural Integrity", () => {
     expect(flowBScript).not.toContain("innerText.includes('places')");
     
     // 驗證是否使用了結構化選擇器
-    expect(flowBScript).toContain(".querySelector('.Io6YTe')");
+    // 注意：目前的實作 detectFlow 使用了結構化判斷，我們確保範本中包含版本 B 的關鍵特徵
+    expect(flowBScript).toContain("className.includes('WNBkOb')");
+    expect(flowBScript).toContain("className.includes('XiKgde')");
   });
 
   test("Flow B should throw FLOW_B_STRUCTURE_CHANGED if structural elements are missing", () => {

@@ -26,8 +26,8 @@ describe("TDD: Dual-Flow Version Detection", () => {
     expect(runDetection(mockB)).toBe("B");
   });
 
-  test("RED: should throw ERROR_UNKNOWN_VERSION if neither matches", () => {
+  test("RED: should throw ERROR_UNKNOWN_FLOW if neither matches", () => {
     // 這裡驗證模板字串是否包含嚴格錯誤處理
-    expect(LIST_COLLECTIONS_TEMPLATE).toContain(ErrorCode.ERROR_UNKNOWN_VERSION);
+    expect(LIST_COLLECTIONS_TEMPLATE).toContain(ErrorCode.ERROR_UNKNOWN_FLOW);
   });
 });

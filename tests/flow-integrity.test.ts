@@ -19,6 +19,6 @@ describe("Strict Flow Integrity (TDD)", () => {
   });
 
   test("LIST_COLLECTIONS should throw Error when version is UNKNOWN", () => {
-    expect(LIST_COLLECTIONS_TEMPLATE).toContain('throw new Error("ERROR_UNKNOWN_VERSION")');
+    expect(LIST_COLLECTIONS_TEMPLATE).toContain('throw new Error("ERROR_UNKNOWN_FLOW")');
   });
 });
