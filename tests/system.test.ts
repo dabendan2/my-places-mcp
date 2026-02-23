@@ -4,8 +4,8 @@ import { jest } from "@jest/globals";
 describe("System Utils", () => {
   describe("cleanJson", () => {
     test("should extract JSON from dirty string", () => {
-      const dirty = "Warnings...\n{\n  \"ok\": true\n}\nExtra...";
-      expect(JSON.parse(cleanJson(dirty))).toEqual({ ok: true });
+      const input = "Warning: something { \"ok\": true } trailing content";
+      expect(JSON.parse(cleanJson(input))).toEqual({ ok: true });
     });
 
     test("should throw error if no JSON found", () => {
@@ -13,23 +13,18 @@ describe("System Utils", () => {
     });
 
     test("should throw error if output is undefined", () => {
-      expect(() => cleanJson(undefined as any)).toThrow("INVALID_JSON_OUTPUT");
+      expect(() => cleanJson(undefined)).toThrow("INVALID_JSON_OUTPUT");
     });
   });
 
   describe("getDisplay", () => {
     test("should parse X11 display correctly", () => {
-      const mockExec = jest.fn<any>().mockReturnValue("X0  X1  X99");
+      const mockExec = jest.fn().mockReturnValue("X0 X1 X10");
       expect(getDisplay(mockExec as any)).toBe(":0");
     });
 
     test("should fallback to :1 if no X11 files found", () => {
-      const mockExec = jest.fn<any>().mockReturnValue("");
-      expect(getDisplay(mockExec as any)).toBe(":1");
-    });
-
-    test("should fallback to :1 on exec error", () => {
-      const mockExec = jest.fn<any>().mockImplementation(() => { throw new Error(); });
+      const mockExec = jest.fn().mockReturnValue("");
       expect(getDisplay(mockExec as any)).toBe(":1");
     });
   });

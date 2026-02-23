@@ -1,4 +1,8 @@
 import { execSync } from "child_process";
+import path from "path";
+import os from "os";
+
+export const DEBUG_DIR = path.join(os.homedir(), ".my-places-mcp", "debug");
 
 /**
  * 檢測當前環境的 X11 Display

@@ -1,0 +1,203 @@
+export enum ErrorCode {
+  AUTH_REQUIRED = "AUTH_REQUIRED",
+  SIDEBAR_NOT_FOUND = "SIDEBAR_NOT_FOUND",
+  COLLECTION_NOT_FOUND = "COLLECTION_NOT_FOUND",
+  BROWSER_CONNECTION_FAILED = "BROWSER_CONNECTION_FAILED",
+  BROWSER_NO_ACTIVE_TABS = "BROWSER_NO_ACTIVE_TABS",
+  PARSE_ERROR = "PARSE_ERROR",
+  DATA_INCONSISTENCY = "DATA_INCONSISTENCY",
+  ERROR_UNKNOWN_VERSION = "ERROR_UNKNOWN_VERSION",
+  FLOW_B_STRUCTURE_CHANGED = "FLOW_B_STRUCTURE_CHANGED"
+}
+
+export const BROWSER_UTILS = `
+  const sleep = m => new Promise(r => setTimeout(r, m));
+  
+  const checkAuth = () => {
+    if (document.body.innerText.includes("登入") && document.body.innerText.includes("帳號")) {
+      throw new Error("${ErrorCode.AUTH_REQUIRED}");
+    }
+  };
+
+  const navigateToSaved = async () => {
+    let savedBtn = Array.from(document.querySelectorAll('button')).find(b => 
+      b.innerText.includes('已儲存') || b.getAttribute('aria-label')?.includes('已儲存')
+    );
+    
+    if (!savedBtn) {
+       const menuBtn = document.querySelector('button#hArSBy, button[aria-label*="選單"]');
+       if (menuBtn) {
+         menuBtn.click();
+         await sleep(1000);
+         savedBtn = Array.from(document.querySelectorAll('a, button')).find(el => 
+           el.innerText.includes('你的地點') || el.innerText.includes('Your places')
+         );
+       }
+    }
+    if (!savedBtn) throw new Error("${ErrorCode.SIDEBAR_NOT_FOUND}: MISSING_SAVED_BTN");
+    
+    if (savedBtn.tagName === 'A') {
+      window.location.href = savedBtn.href;
+    } else {
+      savedBtn.click();
+    }
+    await sleep(3000);
+  };
+
+  const detectVersion = () => {
+    const isLegacy = !!document.querySelector('div[role="main"]');
+    if (isLegacy) return 'A';
+    // Version B 特徵：存在 m6QErb 且包含特定的組合類別
+    const containers = Array.from(document.querySelectorAll('div.m6QErb'));
+    if (containers.some(c => c.className.includes('WNBkOb') && c.className.includes('XiKgde'))) return 'B';
+    return 'UNKNOWN';
+  };
+
+  const scrollAndCollect = async (selector, expectedCount) => {
+    const scrollable = Array.from(document.querySelectorAll('div.m6QErb')).find(el => 
+      el.classList.contains('dS8AEf') || el.style.overflowY === 'auto'
+    );
+    if (!scrollable) return;
+    
+    // TODO: 解決大規模地點抓取導致的 SIGKILL 問題。目前暫時限制為 100 以確保穩定性。
+    const SAFETY_LIMIT = 100;
+    const finalExpected = expectedCount > 0 ? Math.min(expectedCount, SAFETY_LIMIT) : SAFETY_LIMIT;
+
+    let lastCount = 0;
+    let retry = 0;
+    while (true) {
+      scrollable.scrollTo(0, scrollable.scrollHeight);
+      await sleep(2000);
+      let currentCount = document.querySelectorAll(selector).length;
+      
+      if (currentCount >= finalExpected) break;
+      
+      if (currentCount === lastCount) {
+        retry++;
+        if (retry >= 3) {
+           if (finalExpected > 0 && currentCount < finalExpected) {
+             throw new Error("${ErrorCode.DATA_INCONSISTENCY}: STUCK_AT_" + currentCount + "_EXPECTED_" + finalExpected);
+           }
+           break;
+        }
+      } else {
+        retry = 0;
+        lastCount = currentCount;
+      }
+    }
+  };
+`;
+
+const FLOW_A = {
+  listCollections: `
+    const sidebar = document.querySelector('div[role="main"]');
+    const items = Array.from(sidebar.querySelectorAll('button.CsEnBe'));
+    return items.map(btn => {
+      const meta = btn.querySelector('.gSkmPd')?.innerText || "";
+      return {
+        name: btn.querySelector('.Io6YTe')?.innerText?.trim() || "",
+        type: "custom",
+        visibility: meta.includes('·') ? meta.split('·')[0].trim() : (meta.includes('私人') ? '私人' : '未知'),
+        count: parseInt(meta.match(/(\\d+)/)?.[1] || "0", 10),
+        flow: "A"
+      };
+    });
+  `,
+  getPlaces: (name) => `
+    const sidebar = document.querySelector('div[role="main"]');
+    const listBtn = Array.from(sidebar.querySelectorAll('button.CsEnBe')).find(b => 
+      b.querySelector('.Io6YTe')?.innerText.trim() === "${name}"
+    );
+    if (!listBtn) throw new Error("${ErrorCode.COLLECTION_NOT_FOUND}");
+    listBtn.click();
+    await sleep(2000);
+    const countText = document.body.innerText.match(/·\\s*(\\d+)\\s*個地點/);
+    const expected = countText ? parseInt(countText[1], 10) : 0;
+    await scrollAndCollect('button.SMP2wb.fHEb6e', expected);
+    return Array.from(document.querySelectorAll('button.SMP2wb.fHEb6e')).slice(0, 100).map(item => ({
+      name: item.querySelector('.Io6YTe')?.innerText?.trim() || item.innerText.split('\\n')[0],
+      url: "https://www.google.com/maps/search/" + encodeURIComponent(item.innerText.split('\\n')[0]),
+      flow: "A"
+    }));
+  `
+};
+
+const FLOW_B = {
+  listCollections: `
+    const sidebar = document.querySelector('div.m6QErb.WNBkOb.XiKgde');
+    const listButtons = Array.from(sidebar.querySelectorAll('button')).filter(b => 
+      b.querySelector('.Io6YTe') || b.querySelector('.gSkmPd')
+    );
+    if (listButtons.length === 0) throw new Error("${ErrorCode.FLOW_B_STRUCTURE_CHANGED}");
+    return listButtons.map(btn => {
+      const meta = btn.querySelector('.gSkmPd')?.innerText || "";
+      const rawName = btn.querySelector('.Io6YTe')?.innerText?.trim() || btn.innerText.split('\\n').find(l => !/[\\u2000-\\uFFFF]/.test(l))?.trim() || "";
+      const name = rawName.replace(/^[\\u2000-\\uFFFF]/, '').trim();
+      
+      let type = "custom";
+      if (name === "想去的地點" || name === "Want to go") type = "want_to_go";
+      else if (name === "喜愛的地點" || name === "Favorites") type = "favorites";
+      else if (name === "標記的地點" || name === "Starred places") type = "starred";
+
+      return {
+        name,
+        type,
+        visibility: meta.includes('·') ? meta.split('·')[0].trim() : (meta.includes('私人') ? '私人' : '未知'),
+        count: parseInt(meta.match(/(\\d+)/)?.[1] || "0", 10),
+        flow: "B"
+      };
+    });
+  `,
+  getPlaces: (name) => `
+    const listBtn = Array.from(document.querySelectorAll('button')).find(b => {
+      const nameEl = b.querySelector('.Io6YTe');
+      const text = nameEl?.innerText || b.innerText;
+      return text.includes("${name}");
+    });
+    
+    if (!listBtn) throw new Error("${ErrorCode.COLLECTION_NOT_FOUND}");
+    listBtn.click();
+    await sleep(3000);
+    
+    const countText = document.body.innerText.match(/·\\s*(\\d+)\\s*個地點/);
+    const expected = countText ? parseInt(countText[1], 10) : 0;
+    
+    await scrollAndCollect('button.SMP2wb.fHEb6e', expected);
+
+    return Array.from(document.querySelectorAll('button.SMP2wb.fHEb6e')).slice(0, 100).map(item => ({
+      name: item.innerText.split('\\n')[0].trim(),
+      url: "https://www.google.com/maps/search/" + encodeURIComponent(item.innerText.split('\\n')[0].trim()),
+      flow: "B"
+    }));
+  `
+};
+
+export const LIST_COLLECTIONS_TEMPLATE = `
+  (async () => {
+    ${BROWSER_UTILS}
+    checkAuth();
+    await navigateToSaved();
+    const version = detectVersion();
+    if (version === 'UNKNOWN') throw new Error("${ErrorCode.ERROR_UNKNOWN_VERSION}");
+    if (version === 'A') {
+      ${FLOW_A.listCollections}
+    } else {
+      ${FLOW_B.listCollections}
+    }
+  })()
+`;
+
+export const GET_PLACES_TEMPLATE = (collectionName: string) => `
+  (async () => {
+    ${BROWSER_UTILS}
+    checkAuth();
+    await navigateToSaved();
+    const version = detectVersion();
+    if (version === 'UNKNOWN') throw new Error("${ErrorCode.ERROR_UNKNOWN_VERSION}");
+    if (version === 'A') {
+      ${FLOW_A.getPlaces(collectionName)}
+    } else {
+      ${FLOW_B.getPlaces(collectionName)}
+    }
+  })()
+`;

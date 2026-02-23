@@ -1,126 +1,63 @@
-import { GoogleMapsWrapper } from "./browser-wrapper.js";
-import { execSync } from "child_process";
+import { execSync, spawnSync } from "child_process";
 import { writeFileSync, mkdirSync } from "fs";
-import { ErrorCode } from "./types.js";
-import { getDisplay, cleanJson } from "../utils/system.js";
+import { ErrorCode, LIST_COLLECTIONS_TEMPLATE, GET_PLACES_TEMPLATE } from "./constants.js";
+import { cleanJson, DEBUG_DIR } from "../utils/system.js";
+import { BrowserManager } from "./browser-manager.js";
 
 /**
  * PlaceService (Native CLI Execution Edition)
  * 內部呼叫 openclaw browser CLI 執行腳本，並直接返回解析後的清單資料。
  */
 export class PlaceService {
-  private wrapper: GoogleMapsWrapper;
   public _exec = execSync;
+  public _spawn = spawnSync; // 新增可注入的 spawn
   private debug = process.env.DEBUG === "true";
+  private browserManager: BrowserManager;
 
   constructor() {
-    this.wrapper = new GoogleMapsWrapper();
+    this.browserManager = new BrowserManager(this._exec, this.debug);
   }
 
-  private getActiveProfile(): { name: string; hasTabs: boolean } {
-    try {
-      const profilesOutput = this._exec("openclaw browser profiles --json", { encoding: "utf8" });
-      const json = JSON.parse(cleanJson(profilesOutput));
-      const profiles = json.profiles || [];
-      
-      const withTabs = profiles.find((p: any) => p.running && p.tabCount > 0);
-      if (withTabs) return { name: withTabs.name, hasTabs: true };
-      
-      const running = profiles.find((p: any) => p.running);
-      if (running) return { name: running.name, hasTabs: false };
-    } catch (e) {
-      if (this.debug) console.warn("Failed to get active profile, falling back to 'openclaw'", e);
-    }
-
-    return { name: "openclaw", hasTabs: false };
-  }
-
-  private checkBrowserStatus(): { profile: string; targetId?: string } {
-    const profileInfo = this.getActiveProfile();
-    
-    const tabsOutput = this._exec(`openclaw browser --browser-profile ${profileInfo.name} tabs --json`, { encoding: "utf8" });
-    const json = JSON.parse(cleanJson(tabsOutput));
-    const tabs = json.tabs || [];
-    
-    const anyPage = tabs.find((t: any) => t.type === "page");
-    if (anyPage) {
-      if (this.debug) console.log(`Forcing navigation to Google Maps on target ${anyPage.targetId}...`);
-      this._exec(`openclaw browser --browser-profile ${profileInfo.name} navigate --target-id ${anyPage.targetId} "https://www.google.com/maps/"`, { encoding: "utf8" });
-      return { profile: profileInfo.name, targetId: anyPage.targetId };
-    }
-
-    const profilesOutput = this._exec("openclaw browser profiles --json", { encoding: "utf8" });
-    const jsonProfiles = JSON.parse(cleanJson(profilesOutput));
-    const profiles = jsonProfiles.profiles || [];
-    const profileDetail = profiles.find((p: any) => p.name === profileInfo.name);
-
-    if (profileDetail?.running) {
-      if (this.debug) console.log(`Profile ${profileInfo.name} is running but has no pages. Attempting to open one...`);
-      this._exec(`openclaw browser --browser-profile ${profileInfo.name} open "https://www.google.com/maps/"`, { encoding: "utf8" });
-      this._exec("sleep 3");
-      const finalTabsOutput = this._exec(`openclaw browser --browser-profile ${profileInfo.name} tabs --json`, { encoding: "utf8" });
-      const jsonFinal = JSON.parse(cleanJson(finalTabsOutput));
-      const newTabs = jsonFinal.tabs || [];
-      const newPage = newTabs.find((t: any) => t.type === "page");
-      return { profile: profileInfo.name, targetId: newPage?.targetId };
-    }
-
-    if (this.debug) console.log(`Starting profile ${profileInfo.name}...`);
-    try {
-      const display = getDisplay(this._exec);
-      this._exec(`DISPLAY=${display} google-chrome --remote-debugging-port=18800 --user-data-dir=/home/ubuntu/.openclaw/browsers/openclaw > /dev/null 2>&1 &`, { encoding: "utf8" });
-      this._exec("sleep 5");
-      return this.checkBrowserStatus();
-    } catch (e) {
-      throw new Error("BROWSER_CONNECTION_FAILED");
-    }
-  }
-
-  private runCli(script: string, retryCount = 0): any {
-    const { profile, targetId } = this.checkBrowserStatus();
-    const tempPath = "/home/ubuntu/.my-places-mcp/debug";
+  private runCli(script: string): any {
+    const { profile, targetId } = this.browserManager.checkBrowserStatus();
 
     try {
       const escapedScript = script.replace(/'/g, "'\\''");
       const targetArg = targetId ? `--target-id ${targetId}` : "";
       const command = `openclaw browser --browser-profile ${profile} evaluate ${targetArg} --fn '${escapedScript}' --json --timeout 60000`;
       
-      let output: string = "";
-      try {
-        output = this._exec(command, { encoding: "utf8" });
-      } catch (execError: any) {
-        const errorMsg = execError.stdout?.toString() || execError.message || "";
-        if (errorMsg.includes("Execution context was destroyed") && retryCount < 1) {
-          if (this.debug) console.warn(`Navigation detected (Context Destroyed), retrying once (1/1)...`);
-          this._exec("sleep 5");
-          return this.runCli(script, retryCount + 1);
-        }
+      const result = this._spawn(command, { shell: true, encoding: 'utf8' } as any);
+      const stdout = result.stdout?.toString() || "";
+      const stderr = result.stderr?.toString() || "";
 
-        output = errorMsg;
-        if (this.debug) {
-          try { mkdirSync(tempPath, { recursive: true }); } catch (e) {}
-          try { writeFileSync(`${tempPath}/cli_exec_error.log`, output); } catch (e) {}
-          this.captureDebugInfo(profile, tempPath, targetId);
-        }
-        throw execError;
-      }
-      
       if (this.debug) {
-        try { mkdirSync(tempPath, { recursive: true }); } catch (e) {}
-        try { writeFileSync(`${tempPath}/browser_evaluate_raw_response.json`, output); } catch (e) {}
+        try { 
+          mkdirSync(DEBUG_DIR, { recursive: true });
+          writeFileSync(`${DEBUG_DIR}/browser_evaluate_raw_stdout.json`, stdout);
+          if (stderr) writeFileSync(`${DEBUG_DIR}/browser_evaluate_raw_stderr.log`, stderr);
+        } catch (e) {}
       }
 
-      const parsed = JSON.parse(cleanJson(output));
+      if (result.status !== 0) {
+        const errorMsg = stderr || stdout || "CLI_EXECUTION_FAILED";
+        if (this.debug) {
+          try { writeFileSync(`${DEBUG_DIR}/cli_exec_error.log`, `STATUS: ${result.status}\nERROR: ${errorMsg}`); } catch (e) {}
+          this.captureDebugInfo(profile, DEBUG_DIR, targetId);
+        }
+        throw new Error(errorMsg);
+      }
+
+      const parsed = JSON.parse(cleanJson(stdout));
       if (!parsed.ok) throw new Error(parsed.error || "CLI_EXECUTION_FAILED");
       
-      const result = parsed.result;
-      if (Array.isArray(result) && result.length === 0) throw new Error("NO_ELEMENTS_FOUND");
-      if (typeof result === 'string' && Object.values(ErrorCode).includes(result as ErrorCode)) throw new Error(result);
+      const evalResult = parsed.result;
+      if (Array.isArray(evalResult) && evalResult.length === 0) throw new Error("NO_ELEMENTS_FOUND");
+      if (typeof evalResult === 'string' && Object.values(ErrorCode).includes(evalResult as ErrorCode)) throw new Error(evalResult);
 
-      return result;
+      return evalResult;
     } catch (error: any) {
       if (this.debug) {
-        this.captureDebugInfo(profile, tempPath, targetId);
+        this.captureDebugInfo(profile, DEBUG_DIR, targetId);
       }
 
       const msg = error.message || "";
@@ -146,30 +83,29 @@ export class PlaceService {
 
   async listAllCollections() {
     try {
-      const collections = this.runCli(this.wrapper.listCollectionsScript);
+      const collections = this.runCli(LIST_COLLECTIONS_TEMPLATE);
       return { content: [{ type: "text" as const, text: JSON.stringify(collections, null, 2) }] };
     } catch (error: any) {
-      const msg = error.stdout?.toString() || error.message || "UNKNOWN_ERROR";
-      return { content: [{ type: "text" as const, text: `Error: ${msg}` }], isError: true };
+      const msg = error.message || "UNKNOWN_ERROR";
+      throw new Error(msg);
     }
   }
 
   async getPlacesFromCollection(collectionName: string) {
     try {
-      const places = this.runCli(this.wrapper.getPlacesScript(collectionName));
+      const places = this.runCli(GET_PLACES_TEMPLATE(collectionName));
       
       if (this.debug) {
         try {
-          const tempPath = "/home/ubuntu/.my-places-mcp/debug";
-          mkdirSync(tempPath, { recursive: true });
-          writeFileSync(`${tempPath}/last_places_result.json`, JSON.stringify(places, null, 2));
+          mkdirSync(DEBUG_DIR, { recursive: true });
+          writeFileSync(`${DEBUG_DIR}/last_places_result.json`, JSON.stringify(places, null, 2));
         } catch (e) {}
       }
 
       return { content: [{ type: "text" as const, text: JSON.stringify(places, null, 2) }] };
     } catch (error: any) {
-      const msg = error.stdout?.toString() || error.message || "UNKNOWN_ERROR";
-      return { content: [{ type: "text" as const, text: `Error: ${msg}` }], isError: true };
+      const msg = error.message || "UNKNOWN_ERROR";
+      throw new Error(msg);
     }
   }
 }
