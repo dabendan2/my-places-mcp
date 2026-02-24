@@ -176,9 +176,9 @@ const FLOW_B = {
       const name = rawName.replace(/^[\\u2000-\\uFFFF]/, '').trim();
       
       let type = "custom";
-      if (name.includes("想去的地點") || name.includes("Want to go")) type = "want_to_go";
-      else if (name.includes("喜愛的地點") || name.includes("Favorites")) type = "favorites";
-      else if (name.includes("標記的地點") || name.includes("Starred places") || name.includes("已加星號的地點")) type = "starred";
+      if (name.includes("想去的地點") || name.includes("Want to go") || btn.querySelector('.google-symbols')?.innerText === '') type = "want_to_go";
+      else if (name.includes("喜愛的地點") || name.includes("Favorites") || btn.querySelector('.google-symbols')?.innerText === '') type = "favorites";
+      else if (name.includes("標記的地點") || name.includes("Starred places") || name.includes("已加星號的地點") || btn.querySelector('.google-symbols')?.innerText === '') type = "starred";
 
       const countMatch = meta.match(/(\\d+)/);
       let count = countMatch ? parseInt(countMatch[1], 10) : -1;
