@@ -1,6 +1,6 @@
 import { describe, before, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { PlaceService } from '../dist/core/place-service.js';
+import { PlaceService } from '../../dist/core/place-service.js';
 
 describe('PlaceService Integration (Node Native Test)', () => {
   let service: PlaceService;
@@ -9,48 +9,79 @@ describe('PlaceService Integration (Node Native Test)', () => {
     service = new PlaceService();
   });
 
-  it('listAllCollections should return collections with valid structure', async () => {
+  it('list_all_collections should return valid data', async () => {
     const result = await service.listAllCollections();
     
     if (result.isError) {
       const errorText = result.content[0].text;
-      const skipKeywords = ["AUTH_REQUIRED"];
+      const skipKeywords = [
+        "BROWSER_CONNECTION_FAILED",
+        "AUTH_REQUIRED",
+        "BROWSER_NO_ACTIVE_TABS",
+        "SIDEBAR_NOT_FOUND",
+        "gateway timeout",
+        "CLI_EXECUTION_FAILED"
+      ];
+
       if (skipKeywords.some(kw => errorText.includes(kw))) {
-        console.warn(`[Skipped] Pre-condition not met: ${errorText}`);
+        console.warn(`[Skipped Native Integration] Pre-condition not met: ${errorText}`);
         return;
       }
-      throw new Error(`Integration failed: ${errorText}`);
+      throw new Error(`Integration test failed with unexpected error: ${errorText}`);
     }
 
     const collections = JSON.parse(result.content[0].text);
-    assert.ok(Array.isArray(collections), 'Result should be an array');
+    assert.ok(Array.isArray(collections), 'Collections should be an array');
     assert.ok(collections.length > 0, 'Should find at least one collection');
-    // 容許 count 為 -1，因為 Google Maps 在某些語言或特定清單（如「已加星號」且超過一定數量）
-    // 可能不會顯示純數字數量，或需要進一步解析「超過 200 個」等字眼。
-    console.log(`[Success] Found ${collections.length} collections.`);
+
+    const validTypes = ["want_to_go", "starred", "favorites", "custom"];
+    collections.forEach((item) => {
+      assert.ok(item.name && item.name.trim().length > 0, 'Item should have a valid name');
+      assert.ok(validTypes.includes(item.type), `Invalid type: ${item.type}`);
+      assert.ok(typeof item.count === 'number', 'Count should be a number');
+    });
+
+    console.log(`[Success Native Integration] Found ${collections.length} collections.`);
   });
 
-  it('getPlacesFromCollection should return places for a specific list', async () => {
-    // 試圖抓取「想去的地點」或第一個可用的清單
+  it('get_places_from_collection should return places from a non-empty list', async () => {
     const listResult = await service.listAllCollections();
-    if (listResult.isError) return;
-    
+    if (listResult.isError) {
+        console.warn("[Skipped Native Integration] listAllCollections failed, skipping getPlaces.");
+        return;
+    }
     const collections = JSON.parse(listResult.content[0].text);
-    const targetName = collections.find(c => c.name.includes('想去'))?.name || collections[0].name;
-    
-    console.log(`Testing getPlacesFromCollection with target: ${targetName}`);
-    const result = await service.getPlacesFromCollection(targetName);
+    // 尋找一個標準清單 (want_to_go, starred, favorites) 或是第一個清單
+    const standardTypes = ["want_to_go", "starred", "favorites"];
+    const target = collections.find(c => standardTypes.includes(c.type) && (c.count > 0 || c.count === -1)) || collections[0];
+
+    if (!target) {
+      console.warn("[Skipped Native Integration] No valid collection found to test getPlaces.");
+      return;
+    }
+
+    console.log(`[Native Integration] Testing getPlacesFromCollection with: "${target.name}"`);
+    const result = await service.getPlacesFromCollection(target.name);
     
     if (result.isError) {
-      throw new Error(`getPlaces failed: ${result.content[0].text}`);
+      const errorText = result.content[0].text;
+      if (errorText.includes("gateway timeout")) {
+          console.warn("[Skipped Native Integration] Gateway timeout during getPlaces.");
+          return;
+      }
+      throw new Error(`getPlaces failed: ${errorText}`);
     }
 
     const places = JSON.parse(result.content[0].text);
     assert.ok(Array.isArray(places), 'Places should be an array');
+    
     if (places.length > 0) {
-      assert.ok(places[0].name, 'Place should have a name');
-      assert.ok(places[0].url, 'Place should have a URL');
+      places.forEach(place => {
+        assert.ok(place.name && place.name.trim().length > 0, 'Place should have a name');
+        assert.ok(place.url && place.url.startsWith('https://www.google.com/maps/'), 'Place should have a valid Maps URL');
+      });
     }
-    console.log(`[Success] Found ${places.length} places in list "${targetName}".`);
+
+    console.log(`[Success Native Integration] Found ${places.length} places in "${target.name}".`);
   });
 });

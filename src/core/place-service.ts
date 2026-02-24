@@ -20,7 +20,10 @@ export class PlaceService {
     const result = this._spawn(command, { shell: true, encoding: 'utf8' } as any);
     const stdout = result.stdout?.toString() || "";
     const stderr = result.stderr?.toString() || "";
-    if (result.status !== 0) throw new Error(stdout || stderr || "CLI_EXECUTION_FAILED");
+    if (result.status !== 0) {
+      const fullError = (stdout + stderr).trim();
+      throw new Error(fullError || `CLI_EXECUTION_FAILED (code: ${result.status})`);
+    }
     return stdout;
   }
 

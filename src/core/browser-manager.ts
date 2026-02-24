@@ -5,20 +5,8 @@ export class BrowserManager {
   constructor(private _exec: typeof execSync = execSync, private debug: boolean = false) {}
 
   public getActiveProfile(): { name: string; hasTabs: boolean } {
-    try {
-      const profilesOutput = this._exec("openclaw browser profiles --json", { encoding: "utf8" });
-      if (this.debug) console.log("DEBUG: profiles output:", profilesOutput);
-      const json = JSON.parse(cleanJson(profilesOutput));
-      const profiles = json.profiles || [];
-      
-      // 1. 優先尋找目前正在運行且有分頁的 profile
-      const withTabs = profiles.find((p: any) => p.running && p.tabCount > 0);
-      if (withTabs) return { name: withTabs.name, hasTabs: true };
-    } catch (e) {
-      if (this.debug) console.warn("Failed to get active profile, falling back to 'openclaw'", e);
-    }
-    // Fallback: 回傳預設值 "openclaw"
-    return { name: "openclaw", hasTabs: false };
+    // 永遠強制使用 "openclaw" profile，確保與硬編碼的 18800 端口及 userDataDir 一致
+    return { name: "openclaw", hasTabs: true };
   }
 
   public checkBrowserStatus(): { profile: string; targetId?: string } {
@@ -62,16 +50,36 @@ export class BrowserManager {
         if (this.debug) console.warn("Could not detect DISPLAY, defaulting to :0");
       }
       
-      // 啟動瀏覽器永遠屬於 openclaw profile，其 CDP Port 為 18800
       const port = 18800;
       const userDataDir = `/home/ubuntu/.openclaw/browsers/openclaw`;
       
-      this._exec(`DISPLAY=${display} google-chrome --remote-debugging-port=${port} --user-data-dir=${userDataDir} "https://www.google.com/maps/" > /dev/null 2>&1 &`, { encoding: "utf8" });
-      this._exec("sleep 8"); 
+      // 1. 執行啟動命令並檢查是否立即崩潰
+      try {
+        this._exec(`DISPLAY=${display} google-chrome --remote-debugging-port=${port} --user-data-dir=${userDataDir} "https://www.google.com/maps/" > /dev/null 2>&1 &`, { encoding: "utf8" });
+      } catch (execErr: any) {
+        throw new Error(`EXEC_START_FAILED: ${execErr.message}`);
+      }
+
+      // 2. 密集檢查進程是否存活 (取代盲目 sleep 8)
+      let started = false;
+      for (let i = 0; i < 5; i++) {
+        const ps = this._exec(`ps aux | grep google-chrome | grep "port=${port}" | grep -v grep || true`, { encoding: "utf8" }) || "";
+        if (ps.includes("google-chrome")) {
+          started = true;
+          break;
+        }
+        this._exec("sleep 1");
+      }
+
+      if (!started) {
+        throw new Error("CHROME_PROCESS_NOT_FOUND_AFTER_START");
+      }
+
+      this._exec("sleep 3"); // 給予 CDP 建立時間
       return this.checkBrowserStatus();
     } catch (e: any) {
-      if (this.debug) console.error("START_CHROME_FAILED", e);
-      throw new Error("BROWSER_CONNECTION_FAILED");
+      if (this.debug) console.error("START_CHROME_FATAL", e);
+      throw new Error(`BROWSER_START_FAILED: ${e.message}`);
     }
   }
 

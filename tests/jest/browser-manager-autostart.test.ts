@@ -12,25 +12,27 @@ describe("BrowserManager (Auto-Start Unit Test)", () => {
 
   test("should start chrome when no profiles are running", () => {
     // 1. First call (checkBrowserStatus)
-    // getActiveProfile -> No running profiles
-    mockExec.mockReturnValueOnce(JSON.stringify({ profiles: [] }));
-    // tabs -> Should return empty (mocking the CLI failure/empty output)
+    // getActiveProfile (in checkBrowserStatus line 13)
+    // Forced "openclaw", but checkBrowserStatus calls getActiveProfile which is now hardcoded.
+    
+    // tabs -> Should return empty (line 17)
     mockExec.mockReturnValueOnce(JSON.stringify({ tabs: [] }));
-    // get profiles detail -> Still empty
+    // get profiles detail (line 25)
     mockExec.mockReturnValueOnce(JSON.stringify({ profiles: [] }));
-    // getDisplay
+    // getDisplay (in line 45)
     mockExec.mockReturnValueOnce(":0");
-    // google-chrome start call
+    // google-chrome start call (line 52)
     mockExec.mockReturnValueOnce("");
-    // sleep call
+    // ps check (line 59) -> Needs to return something containing "google-chrome"
+    mockExec.mockReturnValueOnce("ubuntu 1234 0.0 0.0 1234 5678 ? Ss 00:00 0:00 google-chrome --port=18800");
+
+    // sleep call (line 70)
     mockExec.mockReturnValueOnce("");
 
-    // 2. Second call (recursive checkBrowserStatus)
-    // getActiveProfile
-    mockExec.mockReturnValueOnce(JSON.stringify({ profiles: [{ name: "openclaw", running: true, tabCount: 1 }] }));
-    // tabs
+    // 2. Second call (recursive checkBrowserStatus line 71)
+    // tabs (line 17)
     mockExec.mockReturnValueOnce(JSON.stringify({ tabs: [{ type: "page", targetId: "new-tab" }] }));
-    // navigate
+    // navigate (line 22)
     mockExec.mockReturnValueOnce("");
 
     const result = manager.checkBrowserStatus();
@@ -44,11 +46,11 @@ describe("BrowserManager (Auto-Start Unit Test)", () => {
   });
 
   test("should use existing tab if available", () => {
-    // getActiveProfile
-    mockExec.mockReturnValueOnce(JSON.stringify({ profiles: [{ name: "openclaw", running: true, tabCount: 1 }] }));
-    // tabs
+    // getActiveProfile (hardcoded "openclaw")
+    
+    // tabs (line 17)
     mockExec.mockReturnValueOnce(JSON.stringify({ tabs: [{ type: "page", targetId: "existing-tab" }] }));
-    // navigate
+    // navigate (line 22)
     mockExec.mockReturnValueOnce("");
 
     const result = manager.checkBrowserStatus();
