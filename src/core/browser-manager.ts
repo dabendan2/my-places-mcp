@@ -55,11 +55,22 @@ export class BrowserManager {
 
     if (this.debug) console.log(`Starting profile ${profileInfo.name}...`);
     try {
-      const display = getDisplay(this._exec);
-      this._exec(`DISPLAY=${display} google-chrome --remote-debugging-port=18800 --user-data-dir=/home/ubuntu/.openclaw/browsers/openclaw > /dev/null 2>&1 &`, { encoding: "utf8" });
-      this._exec("sleep 5");
+      let display = ":0";
+      try {
+        display = getDisplay(this._exec);
+      } catch (e) {
+        if (this.debug) console.warn("Could not detect DISPLAY, defaulting to :0");
+      }
+      
+      // 啟動瀏覽器永遠屬於 openclaw profile，其 CDP Port 為 18800
+      const port = 18800;
+      const userDataDir = `/home/ubuntu/.openclaw/browsers/openclaw`;
+      
+      this._exec(`DISPLAY=${display} google-chrome --remote-debugging-port=${port} --user-data-dir=${userDataDir} "https://www.google.com/maps/" > /dev/null 2>&1 &`, { encoding: "utf8" });
+      this._exec("sleep 8"); 
       return this.checkBrowserStatus();
-    } catch (e) {
+    } catch (e: any) {
+      if (this.debug) console.error("START_CHROME_FAILED", e);
       throw new Error("BROWSER_CONNECTION_FAILED");
     }
   }

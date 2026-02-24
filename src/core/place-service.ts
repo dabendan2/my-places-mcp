@@ -19,7 +19,8 @@ export class PlaceService {
     const command = `openclaw browser --browser-profile ${profile} ${args} --timeout ${timeout}`;
     const result = this._spawn(command, { shell: true, encoding: 'utf8' } as any);
     const stdout = result.stdout?.toString() || "";
-    if (result.status !== 0) throw new Error(stdout || "CLI_EXECUTION_FAILED");
+    const stderr = result.stderr?.toString() || "";
+    if (result.status !== 0) throw new Error(stdout || stderr || "CLI_EXECUTION_FAILED");
     return stdout;
   }
 

@@ -23,11 +23,18 @@ describe("PlaceService (Fully Mocked Unit Test)", () => {
       ]
     });
 
-    mockSpawn.mockReturnValue({
-      status: 0,
-      stdout: Buffer.from(mockOutput),
-      stderr: Buffer.from("")
-    });
+    // Mock sequence: 1. navigate, 2. evaluate (listAllCollections)
+    mockSpawn
+      .mockReturnValueOnce({
+        status: 0,
+        stdout: Buffer.from("Navigated"),
+        stderr: Buffer.from("")
+      })
+      .mockReturnValueOnce({
+        status: 0,
+        stdout: Buffer.from(mockOutput),
+        stderr: Buffer.from("")
+      });
 
     const result = await service.listAllCollections();
     
@@ -38,6 +45,7 @@ describe("PlaceService (Fully Mocked Unit Test)", () => {
   });
 
   test("should handle CLI execution failure gracefully", async () => {
+    // Mock navigate failure
     mockSpawn.mockReturnValue({
       status: 1,
       stdout: Buffer.from(""),
