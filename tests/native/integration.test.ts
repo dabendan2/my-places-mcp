@@ -25,6 +25,8 @@ describe('PlaceService Integration (Node Native Test)', () => {
     const collections = JSON.parse(result.content[0].text);
     assert.ok(Array.isArray(collections), 'Result should be an array');
     assert.ok(collections.length > 0, 'Should find at least one collection');
+    // 容許 count 為 -1，因為 Google Maps 在某些語言或特定清單（如「已加星號」且超過一定數量）
+    // 可能不會顯示純數字數量，或需要進一步解析「超過 200 個」等字眼。
     console.log(`[Success] Found ${collections.length} collections.`);
   });
 

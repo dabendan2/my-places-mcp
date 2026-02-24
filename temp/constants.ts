@@ -45,12 +45,11 @@ export const BROWSER_UTILS = `
   };
 
   const detectFlow = () => {
-    // 優先檢查 Flow B 特徵類別，因為現代版 UI 也常包含 role="main"
-    if (document.querySelector('.XiKgde, .WNBkOb')) return 'B';
-    
-    const mainEl = document.querySelector('div[role="main"]');
-    if (mainEl && mainEl.querySelector('button.CsEnBe')) return 'A';
-    
+    const isLegacy = !!document.querySelector('div[role="main"]');
+    if (isLegacy) return 'A';
+    // Flow B 特徵：存在 m6QErb 且包含特定的組合類別
+    const containers = Array.from(document.querySelectorAll('div.m6QErb'));
+    if (containers.some(c => c.className.includes('WNBkOb') && c.className.includes('XiKgde'))) return 'B';
     return 'UNKNOWN';
   };
 
@@ -106,11 +105,11 @@ const FLOW_A = {
       else if (symbolClasses.includes('IheHDf') || symbolChar === '') type = "favorites";
       else if (name === "已加星號的地點" || name === "Starred places" || symbolChar === '') type = "starred";
 
-      const countMatch = meta.match(/(\d+)/);
+      const countMatch = meta.match(/(\\d+)/);
       let count = countMatch ? parseInt(countMatch[1], 10) : -1;
 
       // 如果抓不到數量且是內建清單，點進去抓取上方標題列的數量
-      if (count === -1 && type !== "custom" && name !== "已加星號的地點") {
+      if (count === -1 && type !== "custom") {
         btn.click();
         await sleep(1500);
         const headerCountMatch = document.body.innerText.match(/·\\s*(\\d+)\\s*個地點/);
@@ -159,11 +158,7 @@ const FLOW_A = {
 
 const FLOW_B = {
   listCollections: `
-    const sidebars = Array.from(document.querySelectorAll('div.m6QErb.WNBkOb.XiKgde'));
-    const sidebar = sidebars.find(s => s.offsetParent !== null && s.querySelectorAll('button').length > 0) || sidebars[0];
-    
-    if (!sidebar) throw new Error("${ErrorCode.FLOW_B_STRUCTURE_CHANGED}");
-
+    const sidebar = document.querySelector('div.m6QErb.WNBkOb.XiKgde');
     const listButtons = Array.from(sidebar.querySelectorAll('button')).filter(b => 
       b.querySelector('.Io6YTe') || b.querySelector('.gSkmPd')
     );
@@ -176,9 +171,9 @@ const FLOW_B = {
       const name = rawName.replace(/^[\\u2000-\\uFFFF]/, '').trim();
       
       let type = "custom";
-      if (name.includes("想去的地點") || name.includes("Want to go")) type = "want_to_go";
-      else if (name.includes("喜愛的地點") || name.includes("Favorites")) type = "favorites";
-      else if (name.includes("標記的地點") || name.includes("Starred places") || name.includes("已加星號的地點")) type = "starred";
+      if (name === "想去的地點" || name === "Want to go") type = "want_to_go";
+      else if (name === "喜愛的地點" || name === "Favorites") type = "favorites";
+      else if (name === "標記的地點" || name === "Starred places") type = "starred";
 
       const countMatch = meta.match(/(\\d+)/);
       let count = countMatch ? parseInt(countMatch[1], 10) : -1;

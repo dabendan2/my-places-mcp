@@ -5,7 +5,15 @@ describe("Strict Version Gatekeeper (TDD)", () => {
     const mockDocument = {
       body: { innerText: "some content" },
       querySelector: (s: string) => {
-        if (s === 'div[role="main"]' && html.includes('role="main"')) return {};
+        if (s === 'div[role="main"]' && html.includes('role="main"')) {
+          return {
+            querySelector: (ss: string) => {
+              if (ss === 'button.CsEnBe' && html.includes('CsEnBe')) return {};
+              return null;
+            }
+          };
+        }
+        if (s === '.XiKgde, .WNBkOb' && (html.includes('XiKgde') || html.includes('WNBkOb'))) return {};
         return null;
       },
       querySelectorAll: (s: string) => {
@@ -31,12 +39,12 @@ describe("Strict Version Gatekeeper (TDD)", () => {
   });
 
   test("should detect Flow A", () => {
-    const legacyHtml = '<div role="main"></div>';
+    const legacyHtml = '<div role="main"><button class="CsEnBe"></button></div>';
     expect(runTemplateInMock(legacyHtml)).toBe("A");
   });
 
   test("should detect Flow B", () => {
-    const modernHtml = '<div class="m6QErb WNBkOb XiKgde"></div>';
+    const modernHtml = '<div class="XiKgde"></div>';
     expect(runTemplateInMock(modernHtml)).toBe("B");
   });
 });

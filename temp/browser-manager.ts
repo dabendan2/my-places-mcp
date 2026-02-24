@@ -66,9 +66,10 @@ export class BrowserManager {
 
   public async detectFlow(targetId: string, profile: string): Promise<string> {
     const cmd = `openclaw browser --browser-profile ${profile} act --target-id ${targetId} --kind evaluate --fn "(() => {
-      if (document.querySelector('.XiKgde, .WNBkOb')) return 'B';
-      const mainEl = document.querySelector('div[role=\\"main\\"]');
-      if (mainEl && mainEl.querySelector('button.CsEnBe')) return 'A';
+      const isLegacy = !!document.querySelector('div[role=\\"main\\"]');
+      if (isLegacy) return 'A';
+      const containers = Array.from(document.querySelectorAll('div.m6QErb'));
+      if (containers.some(c => c.className.includes('WNBkOb') && c.className.includes('XiKgde'))) return 'B';
       return 'UNKNOWN';
     })()" --json`;
     
