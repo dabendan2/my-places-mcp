@@ -10,8 +10,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "npm run test:jest && npm run test:native",
-    "test:jest": "NODE_OPTIONS='--experimental-vm-modules' jest",
-    "test:native": "node --import tsx --test tests/native/*.test.ts",
+    "test:jest": "NODE_OPTIONS='--experimental-vm-modules' jest --runInBand",
+    "test:native": "node --import tsx --test --test-concurrency=1 tests/native/*.test.ts",
     "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
     "run:get-places": "tsc && node dist/bin/run-get-places.js",
     "prepare": "husky"
